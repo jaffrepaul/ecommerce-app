@@ -154,18 +154,35 @@ export default function Home() {
         }
       } else {
         // Handle order creation error
-        const errorData = await orderResponse.json().catch(() => ({ message: 'Failed to create order' }))
-        setCheckoutError({
-          message: errorData.message || 'Failed to create order',
-          type: 'order'
-        })
+        try {
+          const errorData = await orderResponse.json()
+          setCheckoutError({
+            message: errorData.message || 'Failed to create order',
+            type: 'order'
+          })
+        } catch (parseError) {
+          // If we can't parse the response, use the error message from the thrown error
+          setCheckoutError({
+            message: 'Database timeout during order creation. Please try again.',
+            type: 'order'
+          })
+        }
       }
     } catch (error) {
       console.error('Error during checkout:', error)
-      setCheckoutError({
-        message: 'An unexpected error occurred during checkout',
-        type: 'general'
-      })
+      
+      // Check if it's a specific order creation error
+      if (error instanceof Error && error.message.includes('Database timeout')) {
+        setCheckoutError({
+          message: 'Database timeout during order creation. Please try again.',
+          type: 'order'
+        })
+      } else {
+        setCheckoutError({
+          message: 'An unexpected error occurred during checkout',
+          type: 'general'
+        })
+      }
     } finally {
       setCheckoutLoading(false)
     }

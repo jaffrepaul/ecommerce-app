@@ -6,7 +6,7 @@ interface LogContext {
   paymentAmount?: number
   previousTransactions?: number
   action?: string
-  component?: string
+  module?: string
   [key: string]: unknown
 }
 
@@ -48,7 +48,7 @@ export class Logger {
     if (error) {
       Sentry.captureException(error, {
         tags: {
-          component: context.component || 'unknown',
+          module: context.module || 'unknown',
         },
         extra: context,
       })
@@ -63,7 +63,7 @@ export const PaymentLogger = {
       userId,
       orderId,
       paymentAmount: amount,
-      component: 'payment',
+      module: 'payment',
       action: 'attempt',
     })
   },
@@ -74,7 +74,7 @@ export const PaymentLogger = {
       orderId,
       paymentAmount: amount,
       previousTransactions,
-      component: 'payment',
+      module: 'payment',
       action: 'success',
     })
   },
@@ -91,7 +91,7 @@ export const PaymentLogger = {
       orderId,
       paymentAmount: amount,
       previousTransactions,
-      component: 'payment',
+      module: 'payment',
       action: 'failure',
       errorMessage: error.message,
       errorName: error.name,
@@ -100,7 +100,7 @@ export const PaymentLogger = {
     // Capture the exception
     Sentry.captureException(error, {
       tags: {
-        component: 'payment',
+        module: 'payment',
         action: 'failure',
       },
       extra: {
@@ -124,7 +124,7 @@ export const PaymentLogger = {
       orderId,
       paymentAmount: amount,
       duration,
-      component: 'payment',
+      module: 'payment',
       action: 'timeout',
     })
 
@@ -134,7 +134,7 @@ export const PaymentLogger = {
     
     Sentry.captureException(timeoutError, {
       tags: {
-        component: 'payment',
+        module: 'payment',
         action: 'timeout',
       },
       extra: {

@@ -89,8 +89,8 @@ export async function POST(request: NextRequest) {
     // Capture start time before any delays
     const startTime = Date.now()
 
-    // Simulate database timeout during order creation (100% chance for testing)
-    const shouldTimeout = Math.random() < 1.0 // Changed to 100% for testing
+    // Simulate database timeout during order creation (20% chance for demo)
+    const shouldTimeout = Math.random() < 0.2 // Changed to 20% for demo - allows successful runs first
     
     console.log('⏰ Timeout check:', { shouldTimeout })
     
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         operation: 'create_order',
         userId,
         itemCount: items.length,
-        component: 'database',
+        module: 'database',
       })
 
       // Create a REAL slow database query using PostgreSQL pg_sleep
@@ -198,25 +198,33 @@ export async function POST(request: NextRequest) {
       const duration = Date.now() - startTime
       console.log('⏱️ Total duration:', duration)
       
-      // Log timeout with Sentry's native logging
+      // Calculate total payment amount from items
+      let totalPaymentAmount = 0
+      for (const item of items) {
+        totalPaymentAmount += item.price * item.quantity
+      }
+      
+      // Log timeout with Sentry's native logging - including all required info
       logger.error('Database timeout occurred during order creation', {
         duration,
         operation: 'create_order',
         userId,
         itemCount: items.length,
-        component: 'database',
+        paymentAmount: totalPaymentAmount,
+        module: 'database',
       })
 
       // Create a more detailed error for Sentry
       const timeoutError = new Error(`Database timeout after 5000ms during order creation`)
       timeoutError.name = 'OrderCreationTimeoutError'
       
-      // Add additional context to the error
+      // Add additional context to the error - including all required info
       Sentry.setContext('order_creation_timeout', {
         duration,
         operation: 'create_order',
         userId,
         itemCount: items.length,
+        paymentAmount: totalPaymentAmount,
         timestamp: new Date().toISOString(),
       })
 
@@ -224,28 +232,34 @@ export async function POST(request: NextRequest) {
       Sentry.setTag('error_type', 'order_creation_timeout')
       Sentry.setTag('order_status', 'failed')
       Sentry.setTag('timeout_duration', duration.toString())
+      Sentry.setTag('user_id', userId)
+      Sentry.setTag('payment_amount', totalPaymentAmount.toString())
       
-      // Log the error explicitly
+      // Log the error explicitly - including all required info
       logger.error('Order creation timeout error', {
         error: timeoutError.message,
         duration,
         userId,
         itemCount: items.length,
-        component: 'order',
+        paymentAmount: totalPaymentAmount,
+        module: 'order',
         action: 'timeout_error',
       })
       
-      // Capture the exception in Sentry
+      // Capture the exception in Sentry - including all required info
       console.log('📤 Capturing exception in Sentry')
       Sentry.captureException(timeoutError, {
         tags: {
           error_type: 'order_creation_timeout',
           order_status: 'failed',
           timeout_duration: duration.toString(),
+          user_id: userId,
+          payment_amount: totalPaymentAmount.toString(),
         },
         extra: {
           userId,
           itemCount: items.length,
+          paymentAmount: totalPaymentAmount,
           duration,
         },
       })
@@ -293,7 +307,7 @@ export async function POST(request: NextRequest) {
       userId,
       itemCount: items.length,
       total,
-      component: 'order',
+      module: 'order',
       action: 'create',
     })
 
@@ -306,7 +320,7 @@ export async function POST(request: NextRequest) {
     logger.error('Order creation failed', {
       userId: 'unknown',
       itemCount: 0,
-      component: 'order',
+      module: 'order',
       action: 'create',
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorName: error instanceof Error ? error.name : 'UnknownError',
