@@ -33,15 +33,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔄 Order creation started')
-    
     // Set the transaction name for better trace identification
     Sentry.setTag('transaction', 'Create Order')
     
     const body = await request.json()
     const { userId, items } = body
-
-    console.log('📋 Order data:', { userId, itemCount: items?.length })
 
     // Add breadcrumb for order creation start
     Sentry.addBreadcrumb({
@@ -56,7 +52,6 @@ export async function POST(request: NextRequest) {
 
     // Validate userId
     if (!userId) {
-      console.log('❌ Missing userId')
       const error = new Error('userId is required')
       Sentry.captureException(error, {
         tags: {
@@ -89,14 +84,10 @@ export async function POST(request: NextRequest) {
     // Capture start time before any delays
     const startTime = Date.now()
 
-    // Simulate database timeout during order creation (20% chance for demo)
-    const shouldTimeout = Math.random() < 0.2 // Changed to 20% for demo - allows successful runs first
-    
-    console.log('⏰ Timeout check:', { shouldTimeout })
+    // Simulate database timeout 100% of the time for demo
+    const shouldTimeout = true // Changed to 100% for demo - ensures errors occur every time
     
     if (shouldTimeout) {
-      console.log('🚨 Starting timeout simulation')
-      
       // Add breadcrumb for timeout simulation start
       Sentry.addBreadcrumb({
         category: 'database',
@@ -107,20 +98,10 @@ export async function POST(request: NextRequest) {
           itemCount: items.length,
         },
       })
-      
-      // Log database query start with Sentry's native logging
-      const { logger } = Sentry
-      logger.info('Database query started for order creation', {
-        operation: 'create_order',
-        userId,
-        itemCount: items.length,
-        module: 'database',
-      })
 
       // Create a REAL slow database query using PostgreSQL pg_sleep
       // This will show up in Sentry's Backend Performance as an actual slow query
       // Wrap it in a span to ensure Sentry tracks it
-      console.log('💤 Starting slow query simulation')
       
       // Add breadcrumb for slow query start
       Sentry.addBreadcrumb({
@@ -133,10 +114,25 @@ export async function POST(request: NextRequest) {
         },
       })
       
-      // Use setTimeout to simulate a slow database query
-      // This will be tracked by Sentry's automatic instrumentation
-      await new Promise(resolve => setTimeout(resolve, 5000))
-      console.log('✅ Slow query completed')
+      // Create a CUSTOM SPAN for the slow database query with searchable data
+      await Sentry.startSpan(
+        {
+          name: 'Database Query - User Order History',
+          op: 'db.query',
+        },
+        async () => {
+          // Set tags for searchability in Sentry
+          Sentry.setTag('user_id', userId)
+          Sentry.setTag('operation', 'fetch_user_order_history')
+          Sentry.setTag('query_type', 'setTimeout')
+          Sentry.setTag('module', 'database')
+          Sentry.setTag('item_count', items.length.toString())
+          
+          // Use setTimeout to simulate a slow database query
+          // This will be tracked by Sentry's automatic instrumentation
+          await new Promise(resolve => setTimeout(resolve, 5000))
+        }
+      )
       
       // Add breadcrumb for slow query completion
       Sentry.addBreadcrumb({
@@ -151,7 +147,6 @@ export async function POST(request: NextRequest) {
       
       // Add another slow query that should definitely be tracked by Sentry
       // This complex query will take time and be automatically instrumented
-      console.log('🔍 Starting complex findMany query')
       
       // Add breadcrumb for findMany query start
       Sentry.addBreadcrumb({
@@ -164,26 +159,41 @@ export async function POST(request: NextRequest) {
         },
       })
       
-      await prisma.order.findMany({
-        where: {
-          userId: {
-            not: ''
-          }
+      // Create a CUSTOM SPAN for the complex findMany query with searchable data
+      await Sentry.startSpan(
+        {
+          name: 'Database Query - Complex FindMany',
+          op: 'db.query',
         },
-        include: {
-          orderItems: {
+        async () => {
+          // Set tags for searchability in Sentry
+          Sentry.setTag('user_id', userId)
+          Sentry.setTag('operation', 'find_user_orders')
+          Sentry.setTag('query_type', 'findMany')
+          Sentry.setTag('module', 'database')
+          Sentry.setTag('item_count', items.length.toString())
+          
+          await prisma.order.findMany({
+            where: {
+              userId: {
+                not: ''
+              }
+            },
             include: {
-              product: true
-            }
-          },
-          user: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        take: 1000
-      })
-      console.log('✅ findMany completed')
+              orderItems: {
+                include: {
+                  product: true
+                }
+              },
+              user: true
+            },
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 1000
+          })
+        }
+      )
       
       // Add breadcrumb for findMany completion
       Sentry.addBreadcrumb({
@@ -196,7 +206,6 @@ export async function POST(request: NextRequest) {
       })
       
       const duration = Date.now() - startTime
-      console.log('⏱️ Total duration:', duration)
       
       // Calculate total payment amount from items
       let totalPaymentAmount = 0
@@ -205,6 +214,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Log timeout with Sentry's native logging - including all required info
+      const { logger } = Sentry
       logger.error('Database timeout occurred during order creation', {
         duration,
         operation: 'create_order',
@@ -247,7 +257,6 @@ export async function POST(request: NextRequest) {
       })
       
       // Capture the exception in Sentry - including all required info
-      console.log('📤 Capturing exception in Sentry')
       Sentry.captureException(timeoutError, {
         tags: {
           error_type: 'order_creation_timeout',
@@ -265,7 +274,6 @@ export async function POST(request: NextRequest) {
       })
       
       // Throw the error instead of returning response to ensure proper error tracking
-      console.log('💥 Throwing timeout error')
       throw timeoutError
     }
 
@@ -300,21 +308,37 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Log successful order creation with Sentry's native logging
+    // Log successful order creation with Sentry
     const { logger } = Sentry
     logger.info('Order created successfully', {
-      orderId: order.id,
       userId,
+      orderId: order.id,
       itemCount: items.length,
-      total,
+      totalAmount: total,
+      orderStatus: order.status,
       module: 'order',
-      action: 'create',
+      action: 'create_success',
+    })
+
+    // Set success tags for Sentry
+    Sentry.setTag('order_status', 'created')
+    Sentry.setTag('user_id', userId)
+    Sentry.setTag('order_id', order.id)
+    Sentry.setTag('payment_amount', total.toString())
+    Sentry.setTag('item_count', items.length.toString())
+
+    // Add success context to Sentry
+    Sentry.setContext('order_creation_success', {
+      userId,
+      orderId: order.id,
+      itemCount: items.length,
+      totalAmount: total,
+      orderStatus: order.status,
+      timestamp: new Date().toISOString(),
     })
 
     return NextResponse.json(order, { status: 201 })
   } catch (error) {
-    console.error('Error creating order:', error)
-    
     // Log order creation failure with Sentry's native logging
     const { logger } = Sentry
     logger.error('Order creation failed', {

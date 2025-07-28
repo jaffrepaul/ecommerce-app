@@ -27,70 +27,68 @@ export async function POST(request: NextRequest) {
           timestamp: new Date().toISOString(),
         })
 
-        // Log payment attempt with Sentry captureMessage
-        Sentry.captureMessage('Payment attempt started', {
-          level: 'info',
-          tags: {
-            module: 'payment',
-            action: 'attempt',
-            user_id: userId,
-            payment_amount: amount.toString(),
-            order_id: orderId,
-          },
-          extra: {
-            userId,
-            orderId,
-            paymentAmount: amount,
-            module: 'payment',
-            action: 'attempt',
-            user_id: userId,
-            payment_amount: amount,
-            order_id: orderId,
-          },
-        })
+        // Add initial delay to show spinner (1 second)
+        await new Promise(resolve => setTimeout(resolve, 1000))
 
-        // Add initial delay to show spinner (2.5 seconds)
-        await new Promise(resolve => setTimeout(resolve, 2500))
-
-        // Simulate database timeout more frequently (20% chance for demo)
-        const shouldTimeout = Math.random() < 0.2 // Changed to 20% for demo - allows successful runs first
+        // Simulate database timeout 100% of the time for demo
+        const shouldTimeout = true // Changed to 100% for demo - ensures errors occur every time
         
         if (shouldTimeout) {
           // Simulate database timeout with longer delay
           const startTime = Date.now()
           
-          // Log database query start with Sentry captureMessage
-          Sentry.captureMessage('Database query started', {
-            level: 'info',
-            tags: {
-              operation: 'fetch_user_payments',
-              user_id: userId,
-              order_id: orderId,
-              module: 'database',
+          // Create a CUSTOM SPAN for the slow database query with searchable data
+          await Sentry.startSpan(
+            {
+              name: 'Database Query - User Payments',
+              op: 'db.query',
             },
-            extra: {
-              operation: 'fetch_user_payments',
-              userId,
-              orderId,
-              module: 'database',
-            },
-          })
-
-          // Create a REAL slow database query using PostgreSQL pg_sleep
-          // This will show up in Sentry's Backend Performance as an actual slow query
-          await prisma.$queryRaw`SELECT pg_sleep(7.5)`
+            async () => {
+              // Set tags for searchability in Sentry
+              Sentry.setTag('user_id', userId)
+              Sentry.setTag('order_id', orderId)
+              Sentry.setTag('payment_amount', amount.toString())
+              Sentry.setTag('operation', 'fetch_user_payments')
+              Sentry.setTag('query_type', 'pg_sleep')
+              Sentry.setTag('module', 'database')
+              
+              // Create a REAL slow database query using PostgreSQL pg_sleep
+              // This will show up in Sentry's Backend Performance as an actual slow query
+              await prisma.$queryRaw`SELECT pg_sleep(7.5)`
+            }
+          )
           
           const duration = Date.now() - startTime
           
-          // Get previous successful transactions for context (AFTER timeout simulation)
-          const previousTransactions = await prisma.order.findMany({
-            where: {
-              userId,
-              status: 'CONFIRMED'
+          // Create a CUSTOM SPAN for fetching previous transactions with searchable data
+          const previousTransactions = await Sentry.startSpan(
+            {
+              name: 'Database Query - Previous Transactions',
+              op: 'db.query',
             },
-            orderBy: { createdAt: 'desc' },
-            take: 5
-          })
+            async () => {
+              // Set tags for searchability in Sentry
+              Sentry.setTag('user_id', userId)
+              Sentry.setTag('order_id', orderId)
+              Sentry.setTag('payment_amount', amount.toString())
+              Sentry.setTag('operation', 'fetch_previous_transactions')
+              Sentry.setTag('query_type', 'findMany')
+              Sentry.setTag('module', 'database')
+              
+              const transactions = await prisma.order.findMany({
+                where: {
+                  userId,
+                  status: 'CONFIRMED'
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 5
+              })
+              
+              // Set tag with result count
+              Sentry.setTag('previous_transactions_count', transactions.length.toString())
+              return transactions
+            }
+          ) as Array<{ id: string; userId: string; status: string; createdAt: Date }>
           
           // Log timeout with Sentry captureMessage - including all required info
           Sentry.captureMessage('Database timeout occurred', {
@@ -203,29 +201,10 @@ export async function POST(request: NextRequest) {
           take: 5
         })
 
-        // Log previous transactions info
-        Sentry.captureMessage('Previous transactions fetched', {
-          level: 'info',
-          tags: {
-            user_id: userId,
-            previous_transactions: previousTransactions.length.toString(),
-            module: 'payment',
-            action: 'fetch_history',
-          },
-          extra: {
-            userId,
-            previousTransactionsCount: previousTransactions.length,
-            module: 'payment',
-            action: 'fetch_history',
-            user_id: userId,
-            previous_transactions: previousTransactions.length,
-          },
-        })
-
-        // Simulate other failure scenarios (only 5% chance since timeout is 20%)
+        // Simulate other failure scenarios (15% chance for demo)
         const randomFailure = Math.random()
         
-        if (randomFailure < 0.05) {
+        if (randomFailure < 0.15) {
           // Log payment gateway failure with all required info
           Sentry.captureMessage('Payment gateway declined transaction', {
             level: 'error',
@@ -284,51 +263,35 @@ export async function POST(request: NextRequest) {
           data: { status: 'CONFIRMED' }
         })
 
-        // Log successful payment with Sentry captureMessage
-        Sentry.captureMessage('Payment completed successfully', {
-          level: 'info',
-          tags: {
-            user_id: userId,
-            order_id: orderId,
-            payment_amount: amount.toString(),
-            previous_transactions: previousTransactions.length.toString(),
-            module: 'payment',
-            action: 'success',
-          },
-          extra: {
-            userId,
-            orderId,
-            paymentAmount: amount,
-            previousTransactions: previousTransactions.length,
-            module: 'payment',
-            action: 'success',
-            user_id: userId,
-            payment_amount: amount,
-            previous_transactions: previousTransactions.length,
-            order_id: orderId,
-          },
+        // Log successful payment processing with Sentry
+        const { logger } = Sentry
+        logger.info('Payment processed successfully', {
+          userId,
+          orderId: updatedOrder.id,
+          paymentAmount: amount,
+          paymentMethod,
+          orderStatus: updatedOrder.status,
+          previousTransactionsCount: previousTransactions.length,
+          module: 'payment',
+          action: 'process_success',
         })
 
-        // Log successful payment processing
-        Sentry.captureMessage('Payment processed successfully', {
-          level: 'info',
-          tags: {
-            order_id: orderId,
-            payment_amount: amount.toString(),
-            previous_transactions: previousTransactions.length.toString(),
-            module: 'payment',
-            user_id: userId,
-          },
-          extra: {
-            orderId,
-            amount,
-            previousTransactions: previousTransactions.length,
-            module: 'payment',
-            user_id: userId,
-            payment_amount: amount,
-            previous_transactions: previousTransactions.length,
-            order_id: orderId,
-          },
+        // Set success tags for Sentry
+        Sentry.setTag('payment_status', 'success')
+        Sentry.setTag('user_id', userId)
+        Sentry.setTag('order_id', updatedOrder.id)
+        Sentry.setTag('payment_amount', amount.toString())
+        Sentry.setTag('previous_transactions', previousTransactions.length.toString())
+
+        // Add success context to Sentry
+        Sentry.setContext('payment_success', {
+          userId,
+          orderId: updatedOrder.id,
+          paymentAmount: amount,
+          paymentMethod,
+          orderStatus: updatedOrder.status,
+          previousTransactionsCount: previousTransactions.length,
+          timestamp: new Date().toISOString(),
         })
 
         return NextResponse.json({
