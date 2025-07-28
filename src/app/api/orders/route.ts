@@ -42,16 +42,13 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         const { userId, items } = body
 
-        // Add initial delay to show spinner (2 seconds)
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        // Capture start time before any delays
+        const startTime = Date.now()
 
         // Simulate database timeout during order creation (60% chance)
         const shouldTimeout = Math.random() < 0.6
         
         if (shouldTimeout) {
-          // Simulate database timeout with longer delay
-          const startTime = Date.now()
-          
           // Log database query start with Sentry's native logging
           const { logger } = Sentry
           logger.info('Database query started for order creation', {
@@ -61,7 +58,7 @@ export async function POST(request: NextRequest) {
             component: 'database',
           })
 
-          // Simulate a database timeout (7 seconds total - 2 initial + 5 timeout)
+          // Simulate a database timeout (5 seconds)
           await new Promise(resolve => setTimeout(resolve, 5000))
           
           const duration = Date.now() - startTime
@@ -76,7 +73,7 @@ export async function POST(request: NextRequest) {
           })
 
           // Create a more detailed error for Sentry
-          const timeoutError = new Error(`Database timeout after ${duration}ms during order creation`)
+          const timeoutError = new Error(`Database timeout after 5000ms during order creation`)
           timeoutError.name = 'OrderCreationTimeoutError'
           
           // Add additional context to the error

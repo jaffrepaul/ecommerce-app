@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
             operation: 'fetch_user_payments',
             userId,
             orderId,
+            paymentAmount: amount,
             component: 'database',
           })
 
@@ -98,6 +99,8 @@ export async function POST(request: NextRequest) {
           Sentry.setTag('error_type', 'database_timeout')
           Sentry.setTag('payment_status', 'failed')
           Sentry.setTag('timeout_duration', duration.toString())
+          Sentry.setTag('user_id', userId)
+          Sentry.setTag('payment_amount', amount.toString())
           
           // Capture the exception in Sentry
           Sentry.captureException(timeoutError, {
@@ -105,6 +108,8 @@ export async function POST(request: NextRequest) {
               error_type: 'database_timeout',
               payment_status: 'failed',
               timeout_duration: duration.toString(),
+              user_id: userId,
+              payment_amount: amount.toString(),
             },
             extra: {
               userId,
@@ -128,11 +133,50 @@ export async function POST(request: NextRequest) {
           take: 5
         })
 
+        // Log previous transactions info
+        logger.info('Previous transactions fetched', {
+          userId,
+          previousTransactionsCount: previousTransactions.length,
+          component: 'payment',
+          action: 'fetch_history',
+        })
+
         // Simulate other failure scenarios (only 20% chance since timeout is 70%)
         const randomFailure = Math.random()
         
         if (randomFailure < 0.2) {
-          throw new Error('Payment gateway declined the transaction')
+          // Log payment gateway failure with all required info
+          logger.error('Payment gateway declined transaction', {
+            userId,
+            orderId,
+            paymentAmount: amount,
+            previousTransactionsCount: previousTransactions.length,
+            component: 'payment',
+            action: 'gateway_decline',
+          })
+
+          const gatewayError = new Error('Payment gateway declined the transaction')
+          gatewayError.name = 'PaymentGatewayError'
+          
+          // Capture gateway error with all required info
+          Sentry.captureException(gatewayError, {
+            tags: {
+              error_type: 'payment_gateway_decline',
+              payment_status: 'failed',
+              user_id: userId,
+              payment_amount: amount.toString(),
+              previous_transactions: previousTransactions.length.toString(),
+            },
+            extra: {
+              userId,
+              orderId,
+              amount,
+              paymentMethod,
+              previousTransactionsCount: previousTransactions.length,
+            },
+          })
+          
+          throw gatewayError
         }
 
         // Simulate successful payment processing
@@ -194,6 +238,8 @@ export async function POST(request: NextRequest) {
             tags: {
               component: 'payment',
               action: 'failure',
+              user_id: body?.userId || 'unknown',
+              payment_amount: (body?.amount || 0).toString(),
             },
             extra: {
               userId: body?.userId || 'unknown',
