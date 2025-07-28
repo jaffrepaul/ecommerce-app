@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
             component: 'database',
           })
 
-          // Simulate a database timeout (10 seconds total - 2.5 initial + 7.5 timeout)
-          await new Promise(resolve => setTimeout(resolve, 7500))
+          // Create a REAL slow database query using PostgreSQL pg_sleep
+          // This will show up in Sentry's Backend Performance as an actual slow query
+          await prisma.$queryRaw`SELECT pg_sleep(7.5)`
           
           const duration = Date.now() - startTime
           

@@ -24,8 +24,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { email, name } = body
 
-    const user = await prisma.user.create({
-      data: {
+    // Use upsert to either create a new user or return existing one
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {}, // Don't update anything if user exists
+      create: {
         email,
         name
       }

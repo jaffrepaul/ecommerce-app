@@ -93,7 +93,16 @@ export default function Home() {
         body: JSON.stringify(user),
       })
 
+      if (!userResponse.ok) {
+        throw new Error('Failed to create user')
+      }
+
       const userData = await userResponse.json()
+      
+      // Ensure we have a valid userId
+      if (!userData.id) {
+        throw new Error('Invalid user ID received')
+      }
 
       const orderData = {
         userId: userData.id,
@@ -144,8 +153,10 @@ export default function Home() {
           })
         }
       } else {
+        // Handle order creation error
+        const errorData = await orderResponse.json().catch(() => ({ message: 'Failed to create order' }))
         setCheckoutError({
-          message: 'Failed to create order',
+          message: errorData.message || 'Failed to create order',
           type: 'order'
         })
       }
