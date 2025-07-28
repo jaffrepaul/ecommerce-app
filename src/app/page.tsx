@@ -19,10 +19,18 @@ interface CartItem {
   quantity: number
 }
 
+interface CheckoutError {
+  message: string
+  type: 'payment' | 'order' | 'general'
+}
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<CheckoutError | null>(null)
+  const [checkoutSuccess, setCheckoutSuccess] = useState(false)
 
   useEffect(() => {
     fetchProducts()
@@ -69,6 +77,11 @@ export default function Home() {
   }
 
   const handleCheckout = async () => {
+    // Reset states
+    setCheckoutError(null)
+    setCheckoutSuccess(false)
+    setCheckoutLoading(true)
+
     try {
       const user = { id: 'demo-user', email: 'demo@example.com', name: 'Demo User' }
       
@@ -100,15 +113,55 @@ export default function Home() {
       })
 
       if (orderResponse.ok) {
-        alert('Order placed successfully!')
-        setCart([])
+        const orderData = await orderResponse.json()
+        
+        // Process payment with the new payment API
+        const total = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+        
+        const paymentResponse = await fetch('/api/payments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userData.id,
+            orderId: orderData.id,
+            amount: total,
+            paymentMethod: 'credit_card'
+          }),
+        })
+
+        if (paymentResponse.ok) {
+          setCheckoutSuccess(true)
+          setCart([])
+          // Clear success message after 3 seconds
+          setTimeout(() => setCheckoutSuccess(false), 3000)
+        } else {
+          const errorData = await paymentResponse.json()
+          setCheckoutError({
+            message: errorData.message || 'Payment processing failed',
+            type: 'payment'
+          })
+        }
       } else {
-        alert('Failed to place order')
+        setCheckoutError({
+          message: 'Failed to create order',
+          type: 'order'
+        })
       }
     } catch (error) {
       console.error('Error during checkout:', error)
-      alert('Error during checkout')
+      setCheckoutError({
+        message: 'An unexpected error occurred during checkout',
+        type: 'general'
+      })
+    } finally {
+      setCheckoutLoading(false)
     }
+  }
+
+  const clearError = () => {
+    setCheckoutError(null)
   }
 
   if (loading) {
@@ -130,6 +183,10 @@ export default function Home() {
               onUpdateQuantity={updateQuantity}
               onRemoveItem={removeFromCart}
               onCheckout={handleCheckout}
+              checkoutLoading={checkoutLoading}
+              checkoutError={checkoutError}
+              checkoutSuccess={checkoutSuccess}
+              onClearError={clearError}
             />
           </div>
         </div>

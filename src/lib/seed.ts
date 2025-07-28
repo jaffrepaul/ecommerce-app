@@ -35,7 +35,7 @@ async function main() {
         price: 45.99,
         category: 'Office',
         stock: 30,
-        imageUrl: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500'
+        imageUrl: 'https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=500'
       },
       {
         name: 'Water Bottle',
