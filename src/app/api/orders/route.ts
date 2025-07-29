@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
           
           // Use setTimeout to simulate a slow database query
           // This will be tracked by Sentry's automatic instrumentation
-          await new Promise(resolve => setTimeout(resolve, 5000))
+          await new Promise(resolve => setTimeout(resolve, 1000))
         }
       )
       

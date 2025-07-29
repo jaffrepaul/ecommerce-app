@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
           timestamp: new Date().toISOString(),
         })
 
-        // Add initial delay to show spinner (1 second)
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Add initial delay to show spinner (0.2 seconds)
+        await new Promise(resolve => setTimeout(resolve, 200))
 
         // Simulate database timeout 100% of the time for demo
         const shouldTimeout = true // Changed to 100% for demo - ensures errors occur every time
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
               
               // Create a REAL slow database query using PostgreSQL pg_sleep
               // This will show up in Sentry's Backend Performance as an actual slow query
-              await prisma.$queryRaw`SELECT pg_sleep(7.5)`
+              await prisma.$queryRaw`SELECT pg_sleep(1.5)`
             }
           )
           
