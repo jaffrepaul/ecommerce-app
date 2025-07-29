@@ -3,6 +3,9 @@ import { prisma } from './prisma'
 async function main() {
   console.log('Start seeding...')
 
+  // Clear existing products to avoid duplicates
+  await prisma.product.deleteMany({})
+
   await prisma.product.createMany({
     data: [
       {
@@ -44,6 +47,22 @@ async function main() {
         category: 'Sports',
         stock: 75,
         imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500'
+      },
+      {
+        name: 'Smart Watch',
+        description: 'Fitness tracking smartwatch with heart rate monitor',
+        price: 299.99,
+        category: 'Electronics',
+        stock: 20,
+        imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500'
+      },
+      {
+        name: 'Yoga Mat',
+        description: 'Non-slip yoga mat perfect for home workouts',
+        price: 34.99,
+        category: 'Sports',
+        stock: 40,
+        imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500'
       }
     ]
   })
