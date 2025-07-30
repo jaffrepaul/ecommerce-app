@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
 
         // Log successful payment processing with Sentry
         const { logger } = Sentry
-        console.log('About to log successful payment to Sentry...')
         
         logger.info(logger.fmt`Payment processed successfully for order ${updatedOrder.id}`, {
           userId,
@@ -61,8 +60,6 @@ export async function POST(request: NextRequest) {
           action: 'process_success',
         })
         
-        console.log('Successfully logged payment to Sentry')
-
         // Set success tags for Sentry
         Sentry.setTag('payment_status', 'success')
         Sentry.setTag('user_id', userId)
@@ -85,8 +82,6 @@ export async function POST(request: NextRequest) {
         const shouldTimeout = true // 100% chance for demo - ensures errors occur every time
         
         if (shouldTimeout) {
-          console.log('Simulating payment gateway timeout for demo...')
-          
           // Add breadcrumb for timeout simulation start
           Sentry.addBreadcrumb({
             category: 'payment',
@@ -115,7 +110,7 @@ export async function POST(request: NextRequest) {
               Sentry.setTag('module', 'payment')
               
               // Use setTimeout to simulate a slow payment gateway query
-              await new Promise(resolve => setTimeout(resolve, 3000))
+              await new Promise(resolve => setTimeout(resolve, 800))
             }
           )
           
@@ -126,7 +121,7 @@ export async function POST(request: NextRequest) {
             level: 'info',
             data: {
               operation: 'fetch_transaction_history',
-              duration: 3000,
+              duration: 800,
             },
           })
           

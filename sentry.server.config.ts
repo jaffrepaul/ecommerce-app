@@ -11,7 +11,7 @@ Sentry.init({
   tracesSampleRate: 1,
 
   // Enable logs to be sent to Sentry
-  // enableLogs: true, // Comment out to disable logs entirely
+  enableLogs: true,
 
   // Filter logs before sending to Sentry
   beforeSendLog: (log) => {
@@ -35,8 +35,7 @@ Sentry.init({
 
   // Add console logging integration to automatically send console logs to Sentry
   integrations: [
-    // Comment out the line below to stop sending console logs to Sentry
-    // Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
+    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
   ],
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.

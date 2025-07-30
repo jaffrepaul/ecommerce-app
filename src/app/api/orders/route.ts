@@ -119,7 +119,6 @@ export async function POST(request: NextRequest) {
 
     // Log successful order creation with Sentry
     const { logger } = Sentry
-    console.log('About to log successful order to Sentry...')
     
     logger.info(logger.fmt`Order created successfully for user ${userId}`, {
       userId,
@@ -137,8 +136,6 @@ export async function POST(request: NextRequest) {
       }))
     })
     
-    console.log('Successfully logged order to Sentry')
-
     // Set success tags for Sentry
     Sentry.setTag('order_status', 'created')
     Sentry.setTag('user_id', userId)
@@ -157,11 +154,9 @@ export async function POST(request: NextRequest) {
     })
 
     // Simulate database timeout 100% of the time for demo
-    const shouldTimeout = true // 100% chance for demo - ensures errors occur every time
+    const shouldTimeout = false // Temporarily disabled for successful order generation
     
     if (shouldTimeout) {
-      console.log('Simulating database timeout for demo...')
-      
       // Add breadcrumb for timeout simulation start
       Sentry.addBreadcrumb({
         category: 'database',
@@ -189,7 +184,7 @@ export async function POST(request: NextRequest) {
           
           // Use setTimeout to simulate a slow database query
           // This will be tracked by Sentry's automatic instrumentation
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          await new Promise(resolve => setTimeout(resolve, 500))
         }
       )
       
@@ -200,7 +195,7 @@ export async function POST(request: NextRequest) {
         level: 'info',
         data: {
           operation: 'fetch_user_order_history',
-          duration: 2000,
+          duration: 500,
         },
       })
       
