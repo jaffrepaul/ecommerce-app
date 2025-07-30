@@ -5,17 +5,38 @@
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: "https://48cb51045dc2883353064345a43acfac@o4509013641854976.ingest.us.sentry.io/4509748667809792",
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,
 
   // Enable logs to be sent to Sentry
-  enableLogs: true,
+  // enableLogs: true, // Comment out to disable logs entirely
+
+  // Filter logs before sending to Sentry
+  beforeSendLog: (log) => {
+    // Example: Filter out logs with specific messages
+    if (log.message.includes('Test message')) {
+      return null; // Don't send this log
+    }
+    
+    // Example: Filter out logs with specific attributes
+    if (log.attributes?.module === 'test') {
+      return null; // Don't send this log
+    }
+    
+    // Example: Filter out debug level logs
+    if (log.level === 'debug') {
+      return null; // Don't send debug logs
+    }
+    
+    return log; // Send all other logs
+  },
 
   // Add console logging integration to automatically send console logs to Sentry
   integrations: [
-    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
+    // Comment out the line below to stop sending console logs to Sentry
+    // Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
   ],
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.

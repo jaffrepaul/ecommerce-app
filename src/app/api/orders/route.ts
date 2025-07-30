@@ -84,10 +84,84 @@ export async function POST(request: NextRequest) {
     // Capture start time before any delays
     const startTime = Date.now()
 
+    // Calculate total from items
+    let total = 0
+    for (const item of items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId }
+      })
+      if (product) {
+        total += parseFloat(product.price.toString()) * item.quantity
+      }
+    }
+
+    // Create the order with real database operations
+    const order = await prisma.order.create({
+      data: {
+        userId,
+        total,
+        orderItems: {
+          create: items.map((item: OrderItem) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        }
+      },
+      include: {
+        orderItems: {
+          include: {
+            product: true
+          }
+        }
+      }
+    })
+
+    // Log successful order creation with Sentry
+    const { logger } = Sentry
+    console.log('About to log successful order to Sentry...')
+    
+    logger.info(logger.fmt`Order created successfully for user ${userId}`, {
+      userId,
+      orderId: order.id,
+      itemCount: items.length,
+      totalAmount: total,
+      orderStatus: order.status,
+      module: 'order',
+      action: 'create_success',
+      paymentAmount: total,
+      items: items.map((item: OrderItem) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price
+      }))
+    })
+    
+    console.log('Successfully logged order to Sentry')
+
+    // Set success tags for Sentry
+    Sentry.setTag('order_status', 'created')
+    Sentry.setTag('user_id', userId)
+    Sentry.setTag('order_id', order.id)
+    Sentry.setTag('payment_amount', total.toString())
+    Sentry.setTag('item_count', items.length.toString())
+
+    // Add success context to Sentry
+    Sentry.setContext('order_creation_success', {
+      userId,
+      orderId: order.id,
+      itemCount: items.length,
+      totalAmount: total,
+      orderStatus: order.status,
+      timestamp: new Date().toISOString(),
+    })
+
     // Simulate database timeout 100% of the time for demo
-    const shouldTimeout = true // Changed to 100% for demo - ensures errors occur every time
+    const shouldTimeout = true // 100% chance for demo - ensures errors occur every time
     
     if (shouldTimeout) {
+      console.log('Simulating database timeout for demo...')
+      
       // Add breadcrumb for timeout simulation start
       Sentry.addBreadcrumb({
         category: 'database',
@@ -99,21 +173,6 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Create a REAL slow database query using PostgreSQL pg_sleep
-      // This will show up in Sentry's Backend Performance as an actual slow query
-      // Wrap it in a span to ensure Sentry tracks it
-      
-      // Add breadcrumb for slow query start
-      Sentry.addBreadcrumb({
-        category: 'database',
-        message: 'Starting slow database query',
-        level: 'info',
-        data: {
-          operation: 'fetch_user_order_history',
-          userId,
-        },
-      })
-      
       // Create a CUSTOM SPAN for the slow database query with searchable data
       await Sentry.startSpan(
         {
@@ -130,7 +189,7 @@ export async function POST(request: NextRequest) {
           
           // Use setTimeout to simulate a slow database query
           // This will be tracked by Sentry's automatic instrumentation
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await new Promise(resolve => setTimeout(resolve, 2000))
         }
       )
       
@@ -141,7 +200,7 @@ export async function POST(request: NextRequest) {
         level: 'info',
         data: {
           operation: 'fetch_user_order_history',
-          duration: 5000,
+          duration: 2000,
         },
       })
       
@@ -214,7 +273,6 @@ export async function POST(request: NextRequest) {
       }
       
       // Log timeout with Sentry's native logging - including all required info
-      const { logger } = Sentry
       logger.error('Database timeout occurred during order creation', {
         duration,
         operation: 'create_order',
@@ -225,7 +283,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Create a more detailed error for Sentry
-      const timeoutError = new Error(`Database timeout after 5000ms during order creation`)
+      const timeoutError = new Error(`Database timeout after ${duration}ms during order creation`)
       timeoutError.name = 'OrderCreationTimeoutError'
       
       // Add additional context to the error - including all required info
@@ -277,71 +335,11 @@ export async function POST(request: NextRequest) {
       throw timeoutError
     }
 
-    let total = 0
-    for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId }
-      })
-      if (product) {
-        total += parseFloat(product.price.toString()) * item.quantity
-      }
-    }
-
-    const order = await prisma.order.create({
-      data: {
-        userId,
-        total,
-        orderItems: {
-          create: items.map((item: OrderItem) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price
-          }))
-        }
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: true
-          }
-        }
-      }
-    })
-
-    // Log successful order creation with Sentry
-    const { logger } = Sentry
-    logger.info('Order created successfully', {
-      userId,
-      orderId: order.id,
-      itemCount: items.length,
-      totalAmount: total,
-      orderStatus: order.status,
-      module: 'order',
-      action: 'create_success',
-    })
-
-    // Set success tags for Sentry
-    Sentry.setTag('order_status', 'created')
-    Sentry.setTag('user_id', userId)
-    Sentry.setTag('order_id', order.id)
-    Sentry.setTag('payment_amount', total.toString())
-    Sentry.setTag('item_count', items.length.toString())
-
-    // Add success context to Sentry
-    Sentry.setContext('order_creation_success', {
-      userId,
-      orderId: order.id,
-      itemCount: items.length,
-      totalAmount: total,
-      orderStatus: order.status,
-      timestamp: new Date().toISOString(),
-    })
-
     return NextResponse.json(order, { status: 201 })
   } catch (error) {
     // Log order creation failure with Sentry's native logging
     const { logger } = Sentry
-    logger.error('Order creation failed', {
+    logger.error(logger.fmt`Order creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`, {
       userId: 'unknown',
       itemCount: 0,
       module: 'order',

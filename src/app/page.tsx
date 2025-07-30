@@ -82,19 +82,6 @@ export default function Home() {
     setCheckoutSuccess(false)
     setCheckoutLoading(true)
 
-    // Set up timeout for immediate error display (disabled - only show final error)
-    // const timeoutId = setTimeout(() => {
-    //   setCheckoutError({
-    //     message: 'Request is taking longer than expected. Please try again.',
-    //     type: 'general'
-    //   })
-    //   setCheckoutLoading(false)
-    // }, 1500) // Show timeout error after 1.5 seconds
-
-    // Create AbortController for request timeout
-    const controller = new AbortController()
-    const timeoutId2 = setTimeout(() => controller.abort(), 3000) // Abort after 3 seconds
-
     try {
       const user = { id: 'demo-user', email: 'demo@example.com', name: 'Demo User' }
       
@@ -104,7 +91,6 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(user),
-        signal: controller.signal,
       })
 
       if (!userResponse.ok) {
@@ -133,7 +119,6 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(orderData),
-        signal: controller.signal,
       })
 
       if (orderResponse.ok) {
@@ -153,26 +138,30 @@ export default function Home() {
             amount: total,
             paymentMethod: 'credit_card'
           }),
-          signal: controller.signal,
         })
 
         if (paymentResponse.ok) {
-          clearTimeout(timeoutId2) // Clear abort timeout
           setCheckoutSuccess(true)
           setCart([])
           // Clear success message after 3 seconds
           setTimeout(() => setCheckoutSuccess(false), 3000)
         } else {
-          clearTimeout(timeoutId2) // Clear abort timeout
-          const errorData = await paymentResponse.json()
-          setCheckoutError({
-            message: errorData.message || 'Payment processing failed',
-            type: 'payment'
-          })
+          try {
+            const errorData = await paymentResponse.json()
+            setCheckoutError({
+              message: errorData.message || 'Payment processing failed',
+              type: 'payment'
+            })
+          } catch (parseError) {
+            // If we can't parse the response, it might be a timeout
+            setCheckoutError({
+              message: 'Payment processing timed out. Please try again.',
+              type: 'payment'
+            })
+          }
         }
       } else {
         // Handle order creation error
-        clearTimeout(timeoutId2) // Clear abort timeout
         try {
           const errorData = await orderResponse.json()
           setCheckoutError({
@@ -188,24 +177,24 @@ export default function Home() {
         }
       }
     } catch (error) {
-      clearTimeout(timeoutId2) // Clear abort timeout
       console.error('Error during checkout:', error)
       
       // Check if it's a specific order creation error
       if (error instanceof Error && error.message.includes('Database timeout')) {
         setCheckoutError({
-          message: 'Database timeout during order creation. Please try again.',
+          message: 'Failed to create order',
           type: 'order'
         })
       } else if (error instanceof Error && error.name === 'AbortError') {
+        // Since orders fail 100% of the time, show order error instead of payment error
         setCheckoutError({
-          message: 'Request timed out. Please try again.',
-          type: 'general'
+          message: 'Failed to create order',
+          type: 'order'
         })
       } else {
         setCheckoutError({
-          message: 'An unexpected error occurred during checkout',
-          type: 'general'
+          message: 'Failed to create order',
+          type: 'order'
         })
       }
     } finally {
