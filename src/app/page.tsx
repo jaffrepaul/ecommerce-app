@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import ProductCard from '@/components/ProductCard'
 import Cart from '@/components/Cart'
+import { AuthDemo } from '@/components/AuthDemo'
 
 interface Product {
   id: string
@@ -251,6 +252,9 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Auth Demo for Testing Sentry CompanyId */}
+      <AuthDemo />
     </div>
   )
 }

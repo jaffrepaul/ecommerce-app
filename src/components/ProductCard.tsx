@@ -79,6 +79,7 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
   }
 
   return (
+    console.log('ProductCard rendered'),
     <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
       {product.imageUrl && (
         <img

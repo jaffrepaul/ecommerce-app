@@ -19,6 +19,12 @@ Sentry.init({
     Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
   ],
 
+  initialScope: (scope) => {
+    scope.setTag('companyId', 'foo-bar-123');
+    scope.setTag('setBy', 'edge-config-initialScope');
+    return scope;
+  },
+
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
 });

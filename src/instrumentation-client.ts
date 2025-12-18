@@ -3,32 +3,48 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { getClientCompanyId } from "@/lib/sentryContext";
 
 Sentry.init({
-  dsn: "https://20ed4810c650b22cc0d6716d22fad036@o4509013641854976.ingest.us.sentry.io/4509746837520384",
-
-  // Add optional integrations for additional features
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  
+  // Performance Monitoring
+  tracesSampleRate: 1.0,
+  
+  // Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+  
+  // Enable logs to be sent to Sentry
+  enableLogs: true,
+  
+  // Add companyId to ALL logs
+  beforeSendLog: (log) => {
+    const companyId = getClientCompanyId();
+    
+    if (companyId) {
+      if (!log.attributes) {
+        log.attributes = {};
+      }
+      log.attributes.companyId = companyId;
+      log.attributes.setBy = 'CLIENT-beforeSendLog-SECURE';
+    }
+    
+    return log;
+  },
+  
   integrations: [
-    Sentry.replayIntegration(),
+    Sentry.replayIntegration({
+      maskAllText: false,
+      blockAllMedia: false,
+    }),
     // Add console logging integration to automatically send console logs to Sentry
     Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
   ],
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
-
-  // Define how likely Replay events are sampled.
-  // This sets the sample rate to be 10%. You may want this to be 100% while
-  // in development and sample at a lower rate in production
-  replaysSessionSampleRate: 0.1,
-
-  // Define how likely Replay events are sampled when an error occurs.
-  replaysOnErrorSampleRate: 1.0,
-
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  // Enable debug mode to see what Sentry is doing
+  debug: true,
 });
 
+// Export for router navigation tracking
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
