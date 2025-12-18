@@ -1,8 +1,15 @@
-# Final Simplified CompanyId Flow
+# Secure CompanyId Flow with Sentry
 
 ## 🎯 Overview
 
-Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
+**SECURE** implementation using Sentry's per-request scope isolation - `setTag()` + `beforeSendLog()` approach.
+
+### Security Features:
+
+- ✅ **Server**: Uses Sentry's AsyncLocalStorage for per-request isolation (no global variables)
+- ✅ **Client**: Uses Sentry's client scope (safe in browser - each user has own session)
+- ✅ **API Routes**: Each route sets companyId (Next.js requirement)
+- ✅ **No Data Leakage**: CompanyId never leaks between users
 
 ---
 
@@ -140,12 +147,21 @@ Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
     ├─ Runs on EVERY request
     ├─ getCurrentUser()
     ├─ Sentry.setUser() → User context
-    └─ setCompanyId() → Global store
+    └─ Sentry.setTag('companyId', user.companyId)
+       ↳ SECURE: Per-request scope (AsyncLocalStorage)
+
+    src/app/api/*/route.ts (API Route Handlers)
+    ├─ Each route has its own execution context
+    ├─ getCurrentUser() → Get user from session
+    ├─ Sentry.setUser() → User context
+    └─ Sentry.setTag('companyId', user.companyId)
+       ↳ REQUIRED: API routes don't inherit middleware scope
+       ↳ SECURE: Each request isolated via AsyncLocalStorage
 
     sentry.server.config.ts
     ├─ Sentry.init()
     └─ beforeSendLog() {
-         companyId = getCompanyId()
+         companyId = getCurrentScope().getScopeData().tags?.companyId
          log.attributes.companyId = companyId
       }
 
@@ -161,58 +177,127 @@ Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
     src/components/SentryUserContext.tsx
     ├─ Receives companyId as prop
     ├─ Sentry.setUser() → User context
-    └─ setCompanyId() → Global store
+    └─ Sentry.setTag('companyId', companyId)
+       ↳ SECURE: Client-side scope (browser session)
 
     src/instrumentation-client.ts
     ├─ Sentry.init()
     └─ beforeSendLog() {
-         companyId = getCompanyId()
+         companyId = getCurrentScope().getScopeData().tags?.companyId
          log.attributes.companyId = companyId
       }
-
-┌────────────────────────────────────────────────────────────────┐
-│                     SHARED                                     │
-└────────────────────────────────────────────────────────────────┘
-
-    src/lib/sentryContext.ts
-    ├─ let currentCompanyId = null
-    ├─ setCompanyId(value)
-    └─ getCompanyId() → returns value
 ```
 
 ---
 
 ## 🔑 Key Points
 
-| What                     | Where                                  | Purpose                      |
-| ------------------------ | -------------------------------------- | ---------------------------- |
-| **Get CompanyId**        | `src/lib/auth.ts`                      | Reads cookie → looks up user |
-| **Store CompanyId**      | `src/lib/sentryContext.ts`             | Global variable              |
-| **Set on Server**        | `src/middleware.ts`                    | Calls `setCompanyId()`       |
-| **Set on Client**        | `src/components/SentryUserContext.tsx` | Calls `setCompanyId()`       |
-| **Add to Logs (Server)** | `sentry.server.config.ts`              | `beforeSendLog` hook         |
-| **Add to Logs (Client)** | `src/instrumentation-client.ts`        | `beforeSendLog` hook         |
+| What                     | Where                                  | How                                       |
+| ------------------------ | -------------------------------------- | ----------------------------------------- |
+| **Get CompanyId**        | `src/lib/auth.ts`                      | Reads cookie → looks up user              |
+| **Set on Server**        | `src/middleware.ts`                    | `Sentry.setTag('companyId', ...)`         |
+| **Set in API Routes**    | `src/app/api/*/route.ts`               | `Sentry.setTag('companyId', ...)`         |
+| **Set on Client**        | `src/components/SentryUserContext.tsx` | `Sentry.setTag('companyId', ...)`         |
+| **Add to Logs (Server)** | `sentry.server.config.ts`              | `beforeSendLog` reads from scope tags     |
+| **Add to Logs (Client)** | `src/instrumentation-client.ts`        | `beforeSendLog` reads from scope tags     |
+| **Security**             | Sentry SDK                             | AsyncLocalStorage (server) + Client scope |
 
 ---
 
 ## 💡 The Magic
 
-**ONE LINE does all the work:**
+**TWO parts make it work:**
 
 ```typescript
-// In beforeSendLog (both client & server):
-log.attributes.companyId = getCompanyId();
+// Part 1: Set in Sentry scope (middleware/API routes/client)
+Sentry.setTag("companyId", user.companyId);
+
+// Part 2: Read in beforeSendLog (both client & server)
+const companyId = Sentry.getCurrentScope().getScopeData().tags?.companyId;
+log.attributes.companyId = companyId;
 ```
 
-Everything else just makes sure `getCompanyId()` returns the right value!
+**Why this is SECURE:**
+
+- ✅ **Server**: Sentry uses Node.js AsyncLocalStorage → Each request isolated
+- ✅ **Client**: Each browser session has own scope → No cross-user leakage
+- ✅ **No Global Variables**: No shared state that could leak between requests
 
 ---
 
 ## ✅ What This Achieves
 
 - ✅ CompanyId on **all logs** (client + server)
-- ✅ Secure (from authenticated session)
-- ✅ Simple (one global store)
-- ✅ Consistent (same pattern both sides)
-- ✅ No tags needed
-- ✅ Just **log attributes**
+- ✅ **SECURE**: Per-request isolation (server) and per-session (client)
+- ✅ **No Data Leakage**: User A's companyId never appears in User B's logs
+- ✅ Simple `setTag()` + `beforeSendLog()` pattern
+- ✅ Works with Next.js App Router architecture
+- ✅ Uses Sentry's built-in AsyncLocalStorage for request isolation
+
+---
+
+## 🔒 Security Deep Dive
+
+### Why This Implementation is Secure
+
+#### Server-Side (Node.js/Edge)
+
+```typescript
+// In middleware or API routes:
+Sentry.setTag("companyId", user.companyId);
+```
+
+**How Sentry Keeps Requests Isolated:**
+
+- Sentry SDK uses Node.js `AsyncLocalStorage` API
+- Each HTTP request gets its own isolated scope
+- Tags set in Request A are **not visible** to Request B
+- No shared global state
+
+**Example:**
+
+```typescript
+// Request 1 (User Alice)
+Sentry.setTag("companyId", "acme-corp"); // Isolated to this request
+
+// Request 2 (User Bob) - runs concurrently
+Sentry.setTag("companyId", "evil-corp"); // Isolated to this request
+
+// Request 1's log
+// companyId = 'acme-corp' ✅ Correct!
+
+// Request 2's log
+// companyId = 'evil-corp' ✅ Correct!
+```
+
+#### Client-Side (Browser)
+
+```typescript
+// In SentryUserContext:
+Sentry.setTag("companyId", companyId);
+```
+
+**How Client Scope Works:**
+
+- Each browser tab/window has its own JavaScript context
+- One user cannot access another user's browser session
+- Safe to store in client-side Sentry scope
+
+#### Why API Routes Need CompanyId Set
+
+**Next.js Architecture Limitation:**
+
+```typescript
+// ❌ This doesn't work:
+// middleware.ts
+Sentry.setTag("companyId", user.companyId);
+
+// api/orders/route.ts
+// companyId is NOT available here!
+```
+
+**Why?**
+
+- Middleware and API routes run in **separate execution contexts**
+- Each gets its own AsyncLocalStorage scope
+- Solution: Set `companyId` in **each** API route

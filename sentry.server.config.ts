@@ -15,7 +15,7 @@ Sentry.init({
   
   // Add companyId to ALL logs from scope (set by middleware)
   beforeSendLog: (log) => {
-    // Get companyId from current scope (set by middleware)
+    // SECURE: Read from Sentry's per-request scope (set by middleware/API routes)
     const scope = Sentry.getCurrentScope();
     const scopeData = scope.getScopeData();
     const companyId = scopeData.tags?.companyId;

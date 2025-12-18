@@ -3,7 +3,6 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
-import { getCompanyId } from "@/lib/sentryContext";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -20,14 +19,18 @@ Sentry.init({
   
   // Add companyId to log attributes
   beforeSendLog: (log) => {
-    const companyId = getCompanyId();
+    // SECURE: Read from Sentry's client scope (set by SentryUserContext)
+    const scope = Sentry.getCurrentScope();
+    const companyId = scope.getScopeData().tags?.companyId;
     
     if (companyId) {
       if (!log.attributes) {
         log.attributes = {};
       }
       log.attributes.companyId = companyId;
-      log.attributes.setBy = 'CLIENT-beforeSendLog-SECURE'; // For debugging - shows where companyId was set
+      console.log('[CLIENT beforeSendLog] ✅ Added companyId:', companyId);
+    } else {
+      console.log('[CLIENT beforeSendLog] ⚠️ No companyId in scope');
     }
     
     return log;

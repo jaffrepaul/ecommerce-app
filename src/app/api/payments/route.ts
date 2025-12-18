@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   return Sentry.startSpan(
@@ -10,14 +11,23 @@ export async function POST(request: NextRequest) {
     },
     async (span) => {
       try {
+        // SECURITY: Get authenticated user and set companyId in scope
+        // Required: Next.js API routes don't inherit middleware scope
+        const authenticatedUser = await getCurrentUser()
+        if (authenticatedUser) {
+          Sentry.setUser({
+            id: authenticatedUser.id,
+            email: authenticatedUser.email,
+            username: authenticatedUser.name,
+          })
+          
+          // SECURE: Use Sentry's per-request scope isolation
+          Sentry.setTag('companyId', authenticatedUser.companyId)
+          console.log(`✅ [API Route - Payment] companyId set: ${authenticatedUser.companyId}`)
+        }
+        
         const body = await request.json()
         const { userId, orderId, amount, paymentMethod } = body
-
-        // Add user context to Sentry
-        Sentry.setUser({
-          id: userId,
-          paymentMethod,
-        })
 
         // Add custom context
         Sentry.setContext('payment', {

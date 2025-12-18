@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
-import { setCompanyId } from '@/lib/sentryContext'
 
 interface SentryUserContextProps {
   userId: string
@@ -25,23 +24,10 @@ export function SentryUserContext({
       username: userName,
     })
     
-<<<<<<< HEAD
-    // Store companyId globally for beforeSendLog to access
-    if (companyId) {
-      setClientCompanyId(companyId)
-      Sentry.setTag('companyId', companyId)
-      Sentry.setTag('setBy', 'client-SentryUserContext-SECURE') // For debugging - shows where companyId was set
-      console.log(`✅ [Client] CompanyId stored: ${companyId}`)
-    } else {
-      setClientCompanyId(null)
-      console.warn('⚠️ [Client] No companyId provided')
-    }
-=======
-    // Store companyId globally for beforeSendLog to use
-    setCompanyId(companyId)
+    // SECURE: Use Sentry's client-side scope (safe in browser - each user has own session)
+    Sentry.setTag('companyId', companyId)
     
-    console.log(`✅ [Client] Sentry user + companyId stored: ${companyId}`)
->>>>>>> 3be508d (success using beforeSendLog)
+    console.log(`✅ [Client] Sentry user + companyId set: ${companyId}`)
   }, [userId, userEmail, userName, companyId])
 
   return null

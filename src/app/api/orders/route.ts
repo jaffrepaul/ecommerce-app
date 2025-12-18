@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import * as Sentry from '@sentry/nextjs'
+import { getCurrentUser } from '@/lib/auth'
 
 interface OrderItem {
   productId: string
@@ -33,6 +34,21 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Get authenticated user and set companyId in scope
+    // Required: Next.js API routes don't inherit middleware scope
+    const authenticatedUser = await getCurrentUser()
+    if (authenticatedUser) {
+      Sentry.setUser({
+        id: authenticatedUser.id,
+        email: authenticatedUser.email,
+        username: authenticatedUser.name,
+      })
+      
+      // SECURE: Use Sentry's per-request scope isolation
+      Sentry.setTag('companyId', authenticatedUser.companyId)
+      console.log(`✅ [API Route - Orders] companyId set: ${authenticatedUser.companyId}`)
+    }
+    
     // Set the transaction name for better trace identification
     Sentry.setTag('transaction', 'Create Order')
     
