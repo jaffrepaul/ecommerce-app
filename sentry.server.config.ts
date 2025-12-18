@@ -13,19 +13,20 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
   
-  // Add companyId to ALL logs from scope (set by middleware)
+  // Add companyId to log attributes
   beforeSendLog: (log) => {
-    // Get companyId from current scope (set by middleware)
+    // SECURE: Read from Sentry's per-request scope (set by middleware)
     const scope = Sentry.getCurrentScope();
-    const scopeData = scope.getScopeData();
-    const companyId = scopeData.tags?.companyId;
+    const companyId = scope.getScopeData().tags?.companyId;
     
     if (companyId) {
       if (!log.attributes) {
         log.attributes = {};
       }
       log.attributes.companyId = companyId;
-      log.attributes.setBy = 'SERVER-beforeSendLog-SECURE';
+      console.log('[SERVER beforeSendLog] ✅ Added companyId:', companyId);
+    } else {
+      console.log('[SERVER beforeSendLog] ⚠️ No companyId in scope');
     }
     
     return log;

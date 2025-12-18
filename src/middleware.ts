@@ -1,25 +1,27 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
-import { getCompanyIdFromSession } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/auth'
 
 export async function middleware(request: NextRequest) {
-  // ✅ SAFEST METHOD: Get company ID from authenticated session on server
-  const companyId = await getCompanyIdFromSession()
+  // Get user from session
+  const user = await getCurrentUser()
   
-  // Set company ID in Sentry scope for this request
-  if (companyId) {
-    Sentry.setTag('companyId', companyId)
-    Sentry.setTag('setBy', 'middleware-SECURE')
-    
-    console.log(`✅ [Middleware] CompanyId set securely: ${companyId} for ${request.nextUrl.pathname}`)
-    
-    // Also set as context for richer data
-    Sentry.setContext('company', {
-      id: companyId,
+  if (user) {
+    // Set user context
+    Sentry.setUser({
+      id: user.id,
+      email: user.email,
+      username: user.name,
     })
+    
+    // SECURE: Use Sentry's per-request scope isolation
+    Sentry.setTag('companyId', user.companyId)
+    
+    console.log(`✅ [Middleware] User + companyId set: ${user.companyId}`)
   } else {
-    console.warn('⚠️ [Middleware] No companyId found in session')
+    Sentry.setUser(null)
+    console.warn('⚠️ [Middleware] No user found in session')
   }
   
   return NextResponse.next()
