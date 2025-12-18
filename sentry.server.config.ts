@@ -4,39 +4,30 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+const isProduction = process.env.NODE_ENV === "production";
+const isDevelopment = process.env.NODE_ENV === "development";
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,
 
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
+  // Enable logs to be sent to Sentry (only in production)
+  enableLogs: isProduction,
   
-  // Add companyId to log attributes
-  beforeSendLog: (log) => {
-    // SECURE: Read from Sentry's per-request scope (set by middleware)
-    const scope = Sentry.getCurrentScope();
-    const companyId = scope.getScopeData().tags?.companyId;
-    
-    if (companyId) {
-      if (!log.attributes) {
-        log.attributes = {};
-      }
-      log.attributes.companyId = companyId;
-      console.log('[SERVER beforeSendLog] ✅ Added companyId:', companyId);
-    } else {
-      console.log('[SERVER beforeSendLog] ⚠️ No companyId in scope');
-    }
-    
-    return log;
-  },
+  // Note: Scope attributes (like companyId set in middleware) are automatically 
+  // added to all logs, spans, and errors - no beforeSendLog hook needed!
 
-  // Add console logging integration to automatically send console logs to Sentry
-  integrations: [
-    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
-  ],
+  // Only send console logs to Sentry in production
+  // In development, logs will only appear in the console
+  integrations: isProduction
+    ? [Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })]
+    : [],
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: true,
+  // Enable debug mode only in development
+  debug: isDevelopment,
+  
+  // Optional: Disable Sentry entirely in development
+  enabled: isProduction,
 });

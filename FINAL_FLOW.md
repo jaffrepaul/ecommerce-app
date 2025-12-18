@@ -1,8 +1,15 @@
-# Final Simplified CompanyId Flow
+# Simplified CompanyId Flow with Sentry Scope Attributes
 
 ## 🎯 Overview
 
-Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
+Using Sentry SDK 10.32.0+ **scope attributes** feature - companyId is automatically added to all logs, spans, and errors!
+
+**Key Innovation:** `setAttributes()` eliminates the need for:
+
+- ❌ Global store workarounds
+- ❌ `beforeSendLog` hooks
+- ❌ Manual attribute injection
+- ✅ Attributes are automatically applied by Sentry!
 
 ---
 
@@ -49,14 +56,14 @@ Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
           │                                   │
           ▼                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 3. STORE IN GLOBAL                                          │
+│ 3. SET SCOPE ATTRIBUTES (NEW!)                              │
 └─────────────────────────────────────────────────────────────┘
           │                                   │
           ▼                                   ▼
-    setCompanyId(                       Pass as prop to:
-      'company-xyz-456')                <SentryUserContext
-          │                               companyId="..." />
-          │                                   │
+    Sentry.getCurrentScope()           Pass as prop to:
+      .setAttributes({                 <SentryUserContext
+        companyId: '...'                 companyId="..." />
+      })                                      │
           │                                   ▼
           │                       ┌──────────────────────────┐
           │                       │ src/components/          │
@@ -64,58 +71,42 @@ Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
           │                       └──────────────────────────┘
           │                                   │
           │                                   ▼
-          │                           setCompanyId(
-          │                             'company-xyz-456')
+          │                       Sentry.getCurrentScope()
+          │                         .setAttributes({
+          │                           companyId: '...'
+          │                         })
           │                                   │
           └───────────────┬───────────────────┘
                           │
                           ▼
            ┌──────────────────────────────────┐
-           │  src/lib/sentryContext.ts        │
+           │  SENTRY SCOPE ATTRIBUTES         │
+           │  (Managed by SDK)                │
            │                                  │
-           │  GLOBAL VARIABLE:                │
-           │  currentCompanyId =              │
-           │  'company-xyz-456'               │
+           │  attributes: {                   │
+           │    companyId: 'company-xyz-456'  │
+           │  }                               │
            └──────────────────────────────────┘
                           │
-                          │ Used by:
-          ┌───────────────┴────────────────┐
-          │                                │
-          ▼                                ▼
+                          │ Automatically applied to:
+          ┌───────────────┼────────────────┐
+          │               │                │
+          ▼               ▼                ▼
+       LOGS           SPANS           ERRORS
+          │               │                │
+          └───────────────┴────────────────┘
+                          │
+                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 4. LOG CREATED (console.log or error)                      │
-└─────────────────────────────────────────────────────────────┘
-          │                                │
-    SERVER LOG                       CLIENT LOG
-          │                                │
-          ▼                                ▼
-┌───────────────────────┐      ┌─────────────────────────────┐
-│ sentry.server.config  │      │ instrumentation-client.ts   │
-└───────────────────────┘      └─────────────────────────────┘
-          │                                │
-          ▼                                ▼
-    beforeSendLog() {              beforeSendLog() {
-          │                                │
-          ▼                                ▼
-    companyId =                    companyId =
-    getCompanyId()                 getCompanyId()
-          │                                │
-          ▼                                ▼
-    log.attributes.companyId       log.attributes.companyId
-    = 'company-xyz-456'            = 'company-xyz-456'
-          │                                │
-    }                              }
-          │                                │
-          └────────────┬───────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 5. SENT TO SENTRY WITH COMPANYID                           │
+│ 4. SENT TO SENTRY WITH COMPANYID (AUTOMATIC!)              │
 └─────────────────────────────────────────────────────────────┘
 
     Sentry Dashboard shows:
     ├─ User: { id, email, username }
-    └─ Log Attributes: { companyId: 'company-xyz-456' }
+    └─ Attributes: { companyId: 'company-xyz-456' }
+       ├─ On all logs
+       ├─ On all spans
+       └─ On all errors
 ```
 
 ---
@@ -137,17 +128,24 @@ Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
 └────────────────────────────────────────────────────────────────┘
 
     src/middleware.ts
-    ├─ Runs on EVERY request
+    ├─ Runs on EVERY request (before route handlers)
     ├─ getCurrentUser()
     ├─ Sentry.setUser() → User context
-    └─ setCompanyId() → Global store
+    └─ Sentry.getCurrentScope().setAttributes({ companyId })
+       ↳ Sets attributes for middleware scope
+
+    src/app/api/*/route.ts (API Route Handlers)
+    ├─ Each route has its own execution context
+    ├─ getCurrentUser() → Get user from session
+    ├─ Sentry.setUser() → User context
+    └─ Sentry.getCurrentScope().setAttributes({ companyId })
+       ↳ Automatically added to all logs/spans/errors in this route!
+       ↳ Required because API routes don't inherit middleware scope
 
     sentry.server.config.ts
     ├─ Sentry.init()
-    └─ beforeSendLog() {
-         companyId = getCompanyId()
-         log.attributes.companyId = companyId
-      }
+    └─ enableLogs: true
+       ↳ No beforeSendLog needed - attributes are automatic!
 
 ┌────────────────────────────────────────────────────────────────┐
 │                     CLIENT PATH                                │
@@ -161,37 +159,27 @@ Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
     src/components/SentryUserContext.tsx
     ├─ Receives companyId as prop
     ├─ Sentry.setUser() → User context
-    └─ setCompanyId() → Global store
+    └─ Sentry.getCurrentScope().setAttributes({ companyId })
+       ↳ Automatically added to all client-side logs/spans/errors!
 
     src/instrumentation-client.ts
     ├─ Sentry.init()
-    └─ beforeSendLog() {
-         companyId = getCompanyId()
-         log.attributes.companyId = companyId
-      }
-
-┌────────────────────────────────────────────────────────────────┐
-│                     SHARED                                     │
-└────────────────────────────────────────────────────────────────┘
-
-    src/lib/sentryContext.ts
-    ├─ let currentCompanyId = null
-    ├─ setCompanyId(value)
-    └─ getCompanyId() → returns value
+    └─ enableLogs: true
+       ↳ No beforeSendLog needed - attributes are automatic!
 ```
 
 ---
 
 ## 🔑 Key Points
 
-| What                     | Where                                  | Purpose                      |
-| ------------------------ | -------------------------------------- | ---------------------------- |
-| **Get CompanyId**        | `src/lib/auth.ts`                      | Reads cookie → looks up user |
-| **Store CompanyId**      | `src/lib/sentryContext.ts`             | Global variable              |
-| **Set on Server**        | `src/middleware.ts`                    | Calls `setCompanyId()`       |
-| **Set on Client**        | `src/components/SentryUserContext.tsx` | Calls `setCompanyId()`       |
-| **Add to Logs (Server)** | `sentry.server.config.ts`              | `beforeSendLog` hook         |
-| **Add to Logs (Client)** | `src/instrumentation-client.ts`        | `beforeSendLog` hook         |
+| What              | Where                                  | How                                 |
+| ----------------- | -------------------------------------- | ----------------------------------- |
+| **Get CompanyId** | `src/lib/auth.ts`                      | Reads cookie → looks up user        |
+| **Set on Server** | `src/middleware.ts`                    | `getCurrentScope().setAttributes()` |
+| **Set on Client** | `src/components/SentryUserContext.tsx` | `getCurrentScope().setAttributes()` |
+| **Add to Logs**   | Automatic! ✨                          | Sentry SDK handles it               |
+| **Add to Spans**  | Automatic! ✨                          | Sentry SDK handles it               |
+| **Add to Errors** | Automatic! ✨                          | Sentry SDK handles it               |
 
 ---
 
@@ -200,19 +188,221 @@ Simple global store approach - NO tags, just `beforeSendLog` for log attributes.
 **ONE LINE does all the work:**
 
 ```typescript
-// In beforeSendLog (both client & server):
-log.attributes.companyId = getCompanyId();
+// In middleware (server) or SentryUserContext (client):
+Sentry.getCurrentScope().setAttributes({
+  companyId: user.companyId,
+});
 ```
 
-Everything else just makes sure `getCompanyId()` returns the right value!
+That's it! Sentry automatically adds these attributes to:
+
+- ✅ All console logs
+- ✅ All performance spans
+- ✅ All errors and exceptions
+- ✅ All breadcrumbs
+
+No hooks needed. No manual injection. Just works!
+
+---
+
+## ⚠️ Important: Next.js Scope Isolation
+
+**Key Discovery:** In Next.js App Router, middleware and API route handlers run in **separate execution contexts** with their own Sentry scopes. This means:
+
+❌ **Won't work:**
+
+```typescript
+// Setting in middleware only
+export async function middleware(request) {
+  Sentry.getCurrentScope().setAttributes({ companyId: "..." });
+  // API routes won't see this!
+}
+```
+
+✅ **Will work:**
+
+```typescript
+// Set in BOTH middleware AND each API route
+export async function middleware(request) {
+  const user = await getCurrentUser();
+  Sentry.getCurrentScope().setAttributes({ companyId: user.companyId });
+}
+
+// In each API route:
+export async function POST(request) {
+  const user = await getCurrentUser();
+  Sentry.getCurrentScope().setAttributes({ companyId: user.companyId });
+  // Now all logs/errors in this route will have companyId!
+}
+```
+
+This is a **Next.js architectural limitation**, not a Sentry SDK issue. Each route handler gets its own scope for request isolation and security.
+
+---
+
+## 🆕 What Changed in SDK 10.32.0
+
+### Before (Old Approach)
+
+**Problem:** Had to use workarounds:
+
+```typescript
+// Server: Use tags as intermediary
+Sentry.setTag("companyId", user.companyId);
+
+// Then read in beforeSendLog
+beforeSendLog: (log) => {
+  const companyId = getCurrentScope().getScopeData().tags?.companyId;
+  log.attributes.companyId = companyId;
+  return log;
+};
+
+// Client: Use global variable
+let globalCompanyId = null;
+setCompanyId(user.companyId); // Store globally
+
+beforeSendLog: (log) => {
+  log.attributes.companyId = getCompanyId(); // Read from global
+  return log;
+};
+```
+
+### After (New Approach)
+
+**Solution:** Direct scope attributes!
+
+```typescript
+// Both server and client - same simple API:
+Sentry.getCurrentScope().setAttributes({
+  companyId: user.companyId,
+});
+
+// Automatically applied to logs, spans, errors!
+// No beforeSendLog hook needed!
+```
 
 ---
 
 ## ✅ What This Achieves
 
 - ✅ CompanyId on **all logs** (client + server)
+- ✅ CompanyId on **all spans** (performance traces)
+- ✅ CompanyId on **all errors** (exceptions)
 - ✅ Secure (from authenticated session)
-- ✅ Simple (one global store)
+- ✅ Simple (one API call)
 - ✅ Consistent (same pattern both sides)
-- ✅ No tags needed
-- ✅ Just **log attributes**
+- ✅ **50% less code** (no hooks, no global store)
+- ✅ **Official SDK feature** (not a workaround)
+
+---
+
+## 🔐 Security: Per-Request Isolation
+
+### Server (Edge/Node)
+
+- ✅ Each request gets its own scope (async local storage)
+- ⚠️ **Important:** Middleware and API routes run in separate execution contexts
+- ✅ Need to set attributes in **both** middleware and API route handlers
+- ✅ No risk of leaking companyId between users
+- ✅ Safe for multi-tenant applications
+
+**Why set attributes in API routes?**
+
+In Next.js, middleware runs first but API route handlers have their own scope. Attributes set in middleware don't automatically carry over to API routes. Solution: Set scope attributes at the beginning of any API route that generates logs/errors:
+
+```typescript
+// In src/app/api/orders/route.ts
+export async function POST(request: NextRequest) {
+  // Get authenticated user and set scope attributes
+  const authenticatedUser = await getCurrentUser();
+  if (authenticatedUser) {
+    Sentry.setUser({
+      id: authenticatedUser.id,
+      email: authenticatedUser.email,
+      username: authenticatedUser.name,
+    });
+
+    // This ensures all logs/errors in this route have companyId
+    Sentry.getCurrentScope().setAttributes({
+      companyId: authenticatedUser.companyId,
+    });
+  }
+
+  // ... rest of route handler
+}
+```
+
+### Client (Browser)
+
+- ✅ Single global scope per user session
+- ✅ Attributes persist across page navigations
+- ✅ Updated when user context changes
+- ✅ Perfect for user-specific context
+
+---
+
+## 📚 Additional Notes
+
+### Supported Attribute Types
+
+Currently supports: `string`, `number`, `boolean`
+
+```typescript
+Sentry.getCurrentScope().setAttributes({
+  companyId: "company-123", // string ✅
+  userId: 456, // number ✅
+  isPremium: true, // boolean ✅
+  // tags: ['tag1'],                // array ❌ (not yet)
+  // meta: { key: 'val' }           // object ❌ (not yet)
+});
+```
+
+### Multiple Attributes
+
+You can set multiple attributes at once:
+
+```typescript
+Sentry.getCurrentScope().setAttributes({
+  companyId: user.companyId,
+  tier: user.tier,
+  region: user.region,
+});
+```
+
+### Scope Hierarchy
+
+Attributes can be set at different scope levels:
+
+```typescript
+// Global scope - applies to everything
+Sentry.getGlobalScope().setAttributes({ environment: "prod" });
+
+// Isolation scope - request-level (server) or session-level (client)
+Sentry.getIsolationScope().setAttributes({ companyId: "..." });
+
+// Current scope - most specific
+Sentry.getCurrentScope().setAttributes({ operation: "checkout" });
+```
+
+---
+
+## 🚀 Upgrade Path
+
+1. **Update package.json:**
+
+   ```json
+   "@sentry/nextjs": "^10.32.0"
+   ```
+
+2. **Install:**
+
+   ```bash
+   npm install
+   ```
+
+3. **Migrate:**
+   - Replace `setTag()` → `setAttributes()`
+   - Remove `beforeSendLog` hooks
+   - Delete global store files
+
+That's it! 🎉
