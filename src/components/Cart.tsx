@@ -67,7 +67,6 @@ export default function Cart({
   }
 
   return (
-    console.log('Cart rendered'),
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}

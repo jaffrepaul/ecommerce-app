@@ -3,7 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
-import { getClientCompanyId } from "@/lib/sentryContext";
+import { getCompanyId } from "@/lib/sentryContext";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -18,9 +18,9 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
   
-  // Add companyId to ALL logs
+  // Add companyId to log attributes
   beforeSendLog: (log) => {
-    const companyId = getClientCompanyId();
+    const companyId = getCompanyId();
     
     if (companyId) {
       if (!log.attributes) {

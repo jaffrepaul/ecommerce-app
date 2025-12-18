@@ -1,12 +1,13 @@
-// Global store for client-side companyId
-// This is set by SentryUserContext and read by beforeSendLog
+// Simple global store for companyId
+// CLIENT: Used to pass from SentryUserContext to beforeSendLog
+// SERVER: Used to pass from middleware to beforeSendLog
 
 let currentCompanyId: string | null = null;
 
-export function setClientCompanyId(companyId: string | null) {
+export function setCompanyId(companyId: string | null) {
   currentCompanyId = companyId;
 }
 
-export function getClientCompanyId(): string | null {
+export function getCompanyId(): string | null {
   return currentCompanyId;
 }

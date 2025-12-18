@@ -57,15 +57,15 @@ export async function getCurrentUser() {
     const userId = cookieStore.get('userId')?.value
     
     if (!userId) {
-      // Return default demo user if not authenticated
-      return MOCK_USERS['demo']
+      // Return null if not authenticated
+      return null
     }
     
     const user = MOCK_USERS[userId as keyof typeof MOCK_USERS]
-    return user || MOCK_USERS['demo']
+    return user || null
   } catch (error) {
     console.error('Error getting current user:', error)
-    return MOCK_USERS['demo']
+    return null
   }
 }
 
