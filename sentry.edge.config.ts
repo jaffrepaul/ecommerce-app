@@ -5,19 +5,23 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+const isProduction = process.env.NODE_ENV === "production";
+const isDevelopment = process.env.NODE_ENV === "development";
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,
 
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
+  // Enable logs to be sent to Sentry (only in production)
+  enableLogs: isProduction,
 
-  // Add console logging integration to automatically send console logs to Sentry
-  integrations: [
-    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
-  ],
+  // Only send console logs to Sentry in production
+  // In development, logs will only appear in the console
+  integrations: isProduction
+    ? [Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })]
+    : [],
 
   initialScope: (scope) => {
     scope.setTag('companyId', 'foo-bar-123');
@@ -25,6 +29,9 @@ Sentry.init({
     return scope;
   },
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  // Enable debug mode only in development
+  debug: isDevelopment,
+  
+  // Optional: Disable Sentry entirely in development
+  enabled: isProduction,
 });

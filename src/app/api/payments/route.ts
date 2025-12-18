@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   return Sentry.startSpan(
@@ -10,14 +11,26 @@ export async function POST(request: NextRequest) {
     },
     async (span) => {
       try {
+        // Get authenticated user and set scope attributes first
+        const authenticatedUser = await getCurrentUser()
+        if (authenticatedUser) {
+          Sentry.setUser({
+            id: authenticatedUser.id,
+            email: authenticatedUser.email,
+            username: authenticatedUser.name,
+          })
+          
+          // Set companyId on isolation scope (request-level) - automatically added to all logs, spans, and errors
+          // Using getIsolationScope() instead of getCurrentScope() as per Sentry 10.32.0 scope hierarchy
+          Sentry.getIsolationScope().setAttributes({ 
+            companyId: authenticatedUser.companyId 
+          })
+          
+          console.log(`✅ [API Route - Payment] Sentry scope attributes set: companyId=${authenticatedUser.companyId}`)
+        }
+        
         const body = await request.json()
         const { userId, orderId, amount, paymentMethod } = body
-
-        // Add user context to Sentry
-        Sentry.setUser({
-          id: userId,
-          paymentMethod,
-        })
 
         // Add custom context
         Sentry.setContext('payment', {

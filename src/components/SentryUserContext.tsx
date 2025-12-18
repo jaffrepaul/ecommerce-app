@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
-import { setCompanyId } from '@/lib/sentryContext'
 
 interface SentryUserContextProps {
   userId: string
@@ -25,10 +24,13 @@ export function SentryUserContext({
       username: userName,
     })
     
-    // Store companyId globally for beforeSendLog to use
-    setCompanyId(companyId)
+    // Set companyId on isolation scope (session-level) - automatically added to all logs, spans, and errors
+    // Using getIsolationScope() instead of getCurrentScope() as per Sentry 10.32.0 scope hierarchy
+    Sentry.getIsolationScope().setAttributes({ 
+      companyId: companyId 
+    })
     
-    console.log(`✅ [Client] Sentry user + companyId stored: ${companyId}`)
+    console.log(`✅ [Client] Sentry user + companyId attribute set: ${companyId}`)
   }, [userId, userEmail, userName, companyId])
 
   return null

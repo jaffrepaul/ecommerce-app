@@ -3,7 +3,9 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
-import { getCompanyId } from "@/lib/sentryContext";
+
+const isProduction = process.env.NODE_ENV === "production";
+const isDevelopment = process.env.NODE_ENV === "development";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -11,41 +13,37 @@ Sentry.init({
   // Performance Monitoring
   tracesSampleRate: 1.0,
   
-  // Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
+  // Session Replay (only in production to avoid dev noise)
+  replaysSessionSampleRate: isProduction ? 0.1 : 0,
+  replaysOnErrorSampleRate: isProduction ? 1.0 : 0,
   
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
+  // Enable logs to be sent to Sentry (only in production)
+  enableLogs: isProduction,
   
-  // Add companyId to log attributes
-  beforeSendLog: (log) => {
-    const companyId = getCompanyId();
-    
-    if (companyId) {
-      if (!log.attributes) {
-        log.attributes = {};
-      }
-      log.attributes.companyId = companyId;
-      console.log('[CLIENT beforeSendLog] ✅ Added companyId:', companyId);
-    } else {
-      console.log('[CLIENT beforeSendLog] ⚠️ No companyId in global store');
-    }
-    
-    return log;
-  },
+  // Note: Scope attributes (like companyId set in SentryUserContext) are automatically 
+  // added to all logs, spans, and errors - no beforeSendLog hook needed!
   
   integrations: [
-    Sentry.replayIntegration({
-      maskAllText: false,
-      blockAllMedia: false,
-    }),
-    // Add console logging integration to automatically send console logs to Sentry
-    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
+    ...(isProduction
+      ? [
+          Sentry.replayIntegration({
+            maskAllText: false,
+            blockAllMedia: false,
+          }),
+        ]
+      : []),
+    // Only send console logs to Sentry in production
+    // In development, logs will only appear in the browser console
+    ...(isProduction
+      ? [Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })]
+      : []),
   ],
 
-  // Enable debug mode to see what Sentry is doing
-  debug: true,
+  // Enable debug mode only in development
+  debug: isDevelopment,
+  
+  // Optional: Disable Sentry entirely in development
+  enabled: isProduction,
 });
 
 // Export for router navigation tracking

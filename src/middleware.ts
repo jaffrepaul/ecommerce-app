@@ -15,10 +15,13 @@ export async function middleware(request: NextRequest) {
       username: user.name,
     })
     
-    // SECURE: Use Sentry's per-request scope isolation
-    Sentry.setTag('companyId', user.companyId)
+    // Set companyId on isolation scope (request-level) - automatically added to all logs, spans, and errors
+    // Using getIsolationScope() instead of getCurrentScope() as per Sentry 10.32.0 scope hierarchy
+    Sentry.getIsolationScope().setAttributes({ 
+      companyId: user.companyId 
+    })
     
-    console.log(`✅ [Middleware] User + companyId set: ${user.companyId}`)
+    console.log(`✅ [Middleware] User + companyId attribute set: ${user.companyId}`)
   } else {
     Sentry.setUser(null)
     console.warn('⚠️ [Middleware] No user found in session')
