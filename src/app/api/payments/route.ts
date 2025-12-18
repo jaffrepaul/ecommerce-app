@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
               Sentry.setTag('module', 'payment')
               
               // Use setTimeout to simulate a slow payment gateway query
-              await new Promise(resolve => setTimeout(resolve, 800))
+              await new Promise(resolve => setTimeout(resolve, 300))
             }
           )
           
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
             level: 'info',
             data: {
               operation: 'fetch_transaction_history',
-              duration: 800,
+              duration: 300,
             },
           })
           

@@ -12,25 +12,23 @@ Sentry.init({
 
   // Enable logs to be sent to Sentry
   enableLogs: true,
-
-  // Filter logs before sending to Sentry
+  
+  // Add companyId to ALL logs from scope (set by middleware)
   beforeSendLog: (log) => {
-    // Example: Filter out logs with specific messages
-    if (log.message.includes('Test message')) {
-      return null; // Don't send this log
+    // Get companyId from current scope (set by middleware)
+    const scope = Sentry.getCurrentScope();
+    const scopeData = scope.getScopeData();
+    const companyId = scopeData.tags?.companyId;
+    
+    if (companyId) {
+      if (!log.attributes) {
+        log.attributes = {};
+      }
+      log.attributes.companyId = companyId;
+      log.attributes.setBy = 'SERVER-beforeSendLog-SECURE'; // For debugging - shows where companyId was set
     }
     
-    // Example: Filter out logs with specific attributes
-    if (log.attributes?.module === 'test') {
-      return null; // Don't send this log
-    }
-    
-    // Example: Filter out debug level logs
-    if (log.level === 'debug') {
-      return null; // Don't send debug logs
-    }
-    
-    return log; // Send all other logs
+    return log;
   },
 
   // Add console logging integration to automatically send console logs to Sentry
@@ -39,5 +37,5 @@ Sentry.init({
   ],
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  debug: true,
 });
