@@ -1,7 +1,5 @@
 # Sentry CompanyID Implementation Guide
 
-## Branch: `use-getGlobalScope`
-
 This guide documents the implementation of adding `companyId` as an attribute to all Sentry logs in a Next.js e-commerce application, enabling multi-tenant monitoring and log filtering.
 
 ---
