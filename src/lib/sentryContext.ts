@@ -11,3 +11,7 @@ export function setClientCompanyId(companyId: string | null) {
 export function getClientCompanyId(): string | null {
   return currentCompanyId;
 }
+
+
+
+

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import ProductCard from '@/components/ProductCard'
 import Cart from '@/components/Cart'
 import { AuthDemo } from '@/components/AuthDemo'
+import { ScopeTestComponent } from '@/components/ScopeTestComponent'
 
 interface Product {
   id: string
@@ -41,9 +42,15 @@ export default function Home() {
     try {
       const response = await fetch('/api/products')
       const data = await response.json()
-      setProducts(data)
+      // Ensure products is always an array
+      if (Array.isArray(data)) {
+        setProducts(data)
+      } else {
+        setProducts([])
+      }
     } catch (error) {
       console.error('Error fetching products:', error)
+      setProducts([])
     } finally {
       setLoading(false)
     }
@@ -255,6 +262,9 @@ export default function Home() {
 
       {/* Auth Demo for Testing Sentry CompanyId */}
       <AuthDemo />
+      
+      {/* Scope Test Component for proving getCurrentScope behavior */}
+      <ScopeTestComponent />
     </div>
   )
 }

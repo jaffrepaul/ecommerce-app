@@ -23,15 +23,34 @@ Sentry.init({
   
   // Add companyId to logs from multiple sources
   beforeSendLog: (log) => {
-    // Try to get companyId from global storage first
-    let companyId = getClientCompanyId();
+    // METHOD 1: Global variable (current approach)
+    const companyIdFromGlobal = getClientCompanyId();
     
-    // Also try to read from isolation scope tags as fallback
+    // METHOD 2: getCurrentScope() - testing if this is reliable
+    const currentScope = Sentry.getCurrentScope();
+    const currentScopeData = currentScope.getScopeData();
+    const companyIdFromCurrentScope = currentScopeData?.tags?.companyId;
+    
+    // METHOD 3: getIsolationScope() - the fallback
+    const isolationScope = Sentry.getIsolationScope();
+    const isolationScopeData = isolationScope.getScopeData();
+    const companyIdFromIsolationScope = isolationScopeData?.tags?.companyId;
+    
+    // Log comparison for testing
+    if (isDevelopment) {
+      console.log('🔍 beforeSendLog scope comparison:');
+      console.log('  - fromGlobal:', companyIdFromGlobal);
+      console.log('  - fromCurrentScope:', companyIdFromCurrentScope);
+      console.log('  - fromIsolationScope:', companyIdFromIsolationScope);
+      console.log('  - allMatch:', companyIdFromGlobal === companyIdFromCurrentScope && 
+                  companyIdFromGlobal === companyIdFromIsolationScope);
+      console.log('  - logMessage:', typeof log.message === 'string' ? log.message.substring(0, 50) : 'N/A');
+    }
+    
+    // Use global variable first, fallback to isolation scope
+    let companyId = companyIdFromGlobal;
     if (!companyId) {
-      const isolationScope = Sentry.getIsolationScope();
-      const scopeData = isolationScope.getScopeData();
-      const tagValue = scopeData?.tags?.companyId;
-      companyId = typeof tagValue === 'string' ? tagValue : null;
+      companyId = typeof companyIdFromIsolationScope === 'string' ? companyIdFromIsolationScope : null;
     }
     
     if (companyId) {

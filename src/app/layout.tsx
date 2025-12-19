@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   description: "A modern e-commerce application with product catalog and secure checkout",
 };
 
+// Force dynamic rendering for the entire app since we use cookies
+export const dynamic = 'force-dynamic';
+
 export default async function RootLayout({
   children,
 }: Readonly<{
