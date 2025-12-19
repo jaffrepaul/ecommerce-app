@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { prisma } from '@/lib/prisma'
+import { setSentryContext } from '@/lib/sentry-helpers'
 
 export async function POST(request: NextRequest) {
+  // CRITICAL: Set Sentry context first so all logs have companyId
+  await setSentryContext()
+  
   return Sentry.startSpan(
     {
       name: 'Process Payment',
@@ -12,12 +16,6 @@ export async function POST(request: NextRequest) {
       try {
         const body = await request.json()
         const { userId, orderId, amount, paymentMethod } = body
-
-        // Add user context to Sentry
-        Sentry.setUser({
-          id: userId,
-          paymentMethod,
-        })
 
         // Add custom context
         Sentry.setContext('payment', {

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { setSentryContext } from '@/lib/sentry-helpers'
 
 export async function GET() {
+  await setSentryContext()
   try {
     const users = await prisma.user.findMany({
       include: {
@@ -20,6 +22,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  await setSentryContext()
   try {
     const body = await request.json()
     const { email, name } = body

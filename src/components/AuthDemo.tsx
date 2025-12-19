@@ -42,30 +42,30 @@ export function AuthDemo() {
 
   return (
     <div className="fixed bottom-4 right-4 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-4 max-w-sm z-50">
-      <h3 className="font-bold text-lg mb-3">🔒 Auth Demo (Sentry Testing)</h3>
+      <h3 className="font-bold text-lg mb-3 text-gray-900">🔒 Auth Demo (Sentry Testing)</h3>
       
       <div className="space-y-2 mb-3">
         <button
           onClick={() => handleLogin('user-1')}
-          className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+          className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-bold"
         >
           Login as Alice (company-xyz-456)
         </button>
         <button
           onClick={() => handleLogin('user-2')}
-          className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+          className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm font-bold"
         >
           Login as Bob (company-abc-123)
         </button>
         <button
           onClick={() => handleLogin('demo')}
-          className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
+          className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm font-bold"
         >
           Login as Demo (company-demo-789)
         </button>
         <button
           onClick={handleLogout}
-          className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+          className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-bold"
         >
           Logout
         </button>

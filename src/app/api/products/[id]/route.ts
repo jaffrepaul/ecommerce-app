@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { setSentryContext } from '@/lib/sentry-helpers'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await setSentryContext()
+  const { id } = await params
   try {
     const { id } = await params
     const product = await prisma.product.findUnique({
@@ -32,6 +35,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await setSentryContext()
+  const { id } = await params
   try {
     const { id } = await params
     const body = await request.json()
@@ -63,6 +68,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await setSentryContext()
+  const { id } = await params
   try {
     const { id } = await params
     await prisma.product.delete({

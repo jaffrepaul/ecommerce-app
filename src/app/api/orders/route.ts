@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import * as Sentry from '@sentry/nextjs'
+import { setSentryContext } from '@/lib/sentry-helpers'
 
 interface OrderItem {
   productId: string
@@ -9,6 +10,9 @@ interface OrderItem {
 }
 
 export async function GET() {
+  // CRITICAL: Set Sentry context first so all logs have companyId
+  await setSentryContext()
+  
   try {
     const orders = await prisma.order.findMany({
       include: {
@@ -32,6 +36,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // CRITICAL: Set Sentry context first so all logs have companyId
+  await setSentryContext()
+  
   try {
     // Set the transaction name for better trace identification
     Sentry.setTag('transaction', 'Create Order')

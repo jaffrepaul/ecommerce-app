@@ -33,12 +33,14 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {/* Set user context + companyId for CLIENT-SIDE events */}
-        <SentryUserContext 
-          userId={user.id}
-          userEmail={user.email}
-          userName={user.name}
-          companyId={user.companyId}
-        />
+        {user && (
+          <SentryUserContext 
+            userId={user.id}
+            userEmail={user.email}
+            userName={user.name}
+            companyId={user.companyId}
+          />
+        )}
         {children}
       </body>
     </html>

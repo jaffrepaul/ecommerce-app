@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { login, logout } from '@/lib/auth'
+import { setSentryContext } from '@/lib/sentry-helpers'
 
 export async function POST(request: Request) {
+  await setSentryContext()
   const { action, userId } = await request.json()
 
   try {

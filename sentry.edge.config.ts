@@ -5,6 +5,9 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+const isProduction = process.env.NODE_ENV === "production";
+const isDevelopment = process.env.NODE_ENV === "development";
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
@@ -14,11 +17,31 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
-  // Add console logging integration to automatically send console logs to Sentry
+  // Add companyId to logs from isolation scope tags
+  beforeSendLog: (log) => {
+    // Read from isolation scope where we set the tag
+    const isolationScope = Sentry.getIsolationScope();
+    const scopeData = isolationScope.getScopeData();
+    const companyId = scopeData?.tags?.companyId;
+    
+    if (companyId) {
+      log.attributes = {
+        ...log.attributes,
+        companyId,
+        setBy: isDevelopment ? 'EDGE-beforeSendLog' : undefined,
+      };
+    }
+    return log;
+  },
+
+  // Send console logs to Sentry
   integrations: [
-    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
+    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })
   ],
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  // Enable debug mode only in development
+  debug: isDevelopment,
+  
+  // Enable Sentry in all environments (set to isProduction to disable in dev)
+  enabled: true,
 });

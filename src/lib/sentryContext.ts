@@ -1,5 +1,6 @@
-// Global store for client-side companyId
-// This is set by SentryUserContext and read by beforeSendLog
+// Client-side global storage for companyId
+// This bridges the gap between SentryUserContext (where companyId is set)
+// and beforeSendLog (where it's read) in the client runtime
 
 let currentCompanyId: string | null = null;
 

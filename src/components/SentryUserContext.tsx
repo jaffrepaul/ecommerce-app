@@ -5,16 +5,16 @@ import * as Sentry from '@sentry/nextjs'
 import { setClientCompanyId } from '@/lib/sentryContext'
 
 interface SentryUserContextProps {
-  userId?: string
-  userEmail?: string
-  userName?: string
-  companyId?: string
+  userId: string
+  userEmail: string
+  userName: string
+  companyId: string
 }
 
 export function SentryUserContext({ 
-  userId = 'demo-user',
-  userEmail = 'demo@example.com',
-  userName = 'Demo User',
+  userId,
+  userEmail,
+  userName,
   companyId
 }: SentryUserContextProps) {
   useEffect(() => {
@@ -22,19 +22,16 @@ export function SentryUserContext({
     Sentry.setUser({
       id: userId,
       email: userEmail,
-      username: userName
+      username: userName,
     })
     
-    // Store companyId globally for beforeSendLog to access
-    if (companyId) {
-      setClientCompanyId(companyId)
-      Sentry.setTag('companyId', companyId)
-      Sentry.setTag('setBy', 'client-SentryUserContext-SECURE') // For debugging - shows where companyId was set
-      console.log(`✅ [Client] CompanyId stored: ${companyId}`)
-    } else {
-      setClientCompanyId(null)
-      console.warn('⚠️ [Client] No companyId provided')
-    }
+    // Store companyId in global storage for client-side beforeSendLog
+    setClientCompanyId(companyId)
+    
+    // Also set as tag for filtering in Sentry UI
+    Sentry.getIsolationScope().setTag('companyId', companyId)
+    
+    console.log(`✅ [Client] Sentry user + companyId set: ${companyId}`)
   }, [userId, userEmail, userName, companyId])
 
   return null
