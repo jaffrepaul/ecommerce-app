@@ -30,7 +30,8 @@ Sentry.init({
     if (!companyId) {
       const isolationScope = Sentry.getIsolationScope();
       const scopeData = isolationScope.getScopeData();
-      companyId = scopeData?.tags?.companyId;
+      const tagValue = scopeData?.tags?.companyId;
+      companyId = typeof tagValue === 'string' ? tagValue : null;
     }
     
     if (companyId) {
