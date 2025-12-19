@@ -14,24 +14,34 @@ Sentry.init({
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,
 
-  // Enable logs to be sent to Sentry (only in production)
-  enableLogs: isProduction,
+  // Enable logs to be sent to Sentry
+  enableLogs: true,
 
-  // Only send console logs to Sentry in production
-  // In development, logs will only appear in the console
-  integrations: isProduction
-    ? [Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })]
-    : [],
-
-  initialScope: (scope) => {
-    scope.setTag('companyId', 'foo-bar-123');
-    scope.setTag('setBy', 'edge-config-initialScope');
-    return scope;
+  // Add companyId to logs from isolation scope tags
+  beforeSendLog: (log) => {
+    // Read from isolation scope where we set the tag
+    const isolationScope = Sentry.getIsolationScope();
+    const scopeData = isolationScope.getScopeData();
+    const companyId = scopeData?.tags?.companyId;
+    
+    if (companyId) {
+      log.attributes = {
+        ...log.attributes,
+        companyId,
+        setBy: isDevelopment ? 'EDGE-beforeSendLog' : undefined,
+      };
+    }
+    return log;
   },
+
+  // Send console logs to Sentry
+  integrations: [
+    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })
+  ],
 
   // Enable debug mode only in development
   debug: isDevelopment,
   
-  // Optional: Disable Sentry entirely in development
-  enabled: isProduction,
+  // Enable Sentry in all environments (set to isProduction to disable in dev)
+  enabled: true,
 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import * as Sentry from '@sentry/nextjs'
-import { getCurrentUser } from '@/lib/auth'
+import { setSentryContext } from '@/lib/sentry-helpers'
 
 interface OrderItem {
   productId: string
@@ -10,6 +10,9 @@ interface OrderItem {
 }
 
 export async function GET() {
+  // CRITICAL: Set Sentry context first so all logs have companyId
+  await setSentryContext()
+  
   try {
     const orders = await prisma.order.findMany({
       include: {
@@ -33,25 +36,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // CRITICAL: Set Sentry context first so all logs have companyId
+  await setSentryContext()
+  
   try {
-    // Get authenticated user and set scope attributes
-    const authenticatedUser = await getCurrentUser()
-    if (authenticatedUser) {
-      Sentry.setUser({
-        id: authenticatedUser.id,
-        email: authenticatedUser.email,
-        username: authenticatedUser.name,
-      })
-      
-      // Set companyId on isolation scope (request-level) - automatically added to all logs, spans, and errors
-      // Using getIsolationScope() instead of getCurrentScope() as per Sentry 10.32.0 scope hierarchy
-      Sentry.getIsolationScope().setAttributes({ 
-        companyId: authenticatedUser.companyId 
-      })
-      
-      console.log(`✅ [API Route] Sentry scope attributes set: companyId=${authenticatedUser.companyId}`)
-    }
-    
     // Set the transaction name for better trace identification
     Sentry.setTag('transaction', 'Create Order')
     

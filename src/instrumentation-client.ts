@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { getClientCompanyId } from "@/lib/sentryContext";
 
 const isProduction = process.env.NODE_ENV === "production";
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -17,11 +18,30 @@ Sentry.init({
   replaysSessionSampleRate: isProduction ? 0.1 : 0,
   replaysOnErrorSampleRate: isProduction ? 1.0 : 0,
   
-  // Enable logs to be sent to Sentry (only in production)
-  enableLogs: isProduction,
+  // Enable logs to be sent to Sentry
+  enableLogs: true,
   
-  // Note: Scope attributes (like companyId set in SentryUserContext) are automatically 
-  // added to all logs, spans, and errors - no beforeSendLog hook needed!
+  // Add companyId to logs from multiple sources
+  beforeSendLog: (log) => {
+    // Try to get companyId from global storage first
+    let companyId = getClientCompanyId();
+    
+    // Also try to read from isolation scope tags as fallback
+    if (!companyId) {
+      const isolationScope = Sentry.getIsolationScope();
+      const scopeData = isolationScope.getScopeData();
+      companyId = scopeData?.tags?.companyId;
+    }
+    
+    if (companyId) {
+      log.attributes = {
+        ...log.attributes,
+        companyId,
+        setBy: isDevelopment ? 'CLIENT-beforeSendLog' : undefined,
+      };
+    }
+    return log;
+  },
   
   integrations: [
     ...(isProduction
@@ -32,18 +52,15 @@ Sentry.init({
           }),
         ]
       : []),
-    // Only send console logs to Sentry in production
-    // In development, logs will only appear in the browser console
-    ...(isProduction
-      ? [Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })]
-      : []),
+    // Send console logs to Sentry
+    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })
   ],
 
   // Enable debug mode only in development
   debug: isDevelopment,
   
-  // Optional: Disable Sentry entirely in development
-  enabled: isProduction,
+  // Enable Sentry in all environments (set to isProduction to disable in dev)
+  enabled: true,
 });
 
 // Export for router navigation tracking

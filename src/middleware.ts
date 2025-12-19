@@ -8,23 +8,25 @@ export async function middleware(request: NextRequest) {
   const user = await getCurrentUser()
   
   if (user) {
-    // Set user context
+    // Set user context first
     Sentry.setUser({
       id: user.id,
       email: user.email,
       username: user.name,
     })
     
-    // Set companyId on isolation scope (request-level) - automatically added to all logs, spans, and errors
-    // Using getIsolationScope() instead of getCurrentScope() as per Sentry 10.32.0 scope hierarchy
-    Sentry.getIsolationScope().setAttributes({ 
-      companyId: user.companyId 
-    })
+    // Set companyId on isolation scope as a tag (will be read by beforeSendLog)
+    Sentry.getIsolationScope().setTag('companyId', user.companyId)
     
-    console.log(`✅ [Middleware] User + companyId attribute set: ${user.companyId}`)
+    // Use Sentry logger to ensure scope is properly set
+    // This will have the companyId attribute!
+    Sentry.logger.info('Middleware: User authenticated', {
+      userId: user.id,
+      companyId: user.companyId,
+    })
   } else {
     Sentry.setUser(null)
-    console.warn('⚠️ [Middleware] No user found in session')
+    Sentry.logger.warn('Middleware: No user found in session')
   }
   
   return NextResponse.next()
