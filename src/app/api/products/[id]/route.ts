@@ -9,6 +9,7 @@ export async function GET(
   await setSentryContext()
   const { id } = await params
   try {
+    const { id } = await params
     const product = await prisma.product.findUnique({
       where: { id }
     })
@@ -37,6 +38,7 @@ export async function PUT(
   await setSentryContext()
   const { id } = await params
   try {
+    const { id } = await params
     const body = await request.json()
     const { name, description, price, imageUrl, category, stock } = body
 
@@ -69,6 +71,7 @@ export async function DELETE(
   await setSentryContext()
   const { id } = await params
   try {
+    const { id } = await params
     await prisma.product.delete({
       where: { id }
     })
