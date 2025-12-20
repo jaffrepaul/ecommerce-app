@@ -692,29 +692,31 @@ Filter by runtime (dev only): `setBy:CLIENT-beforeSendLog`
 
 ---
 
-## Files Modified
+## Querying and Filtering Logs in Sentry
 
-### Configuration (3 files)
+Once your logs are flowing into Sentry with the `companyId` attribute, you can leverage Sentry's powerful query and filtering capabilities to analyze logs by company.
 
-1. `sentry.server.config.ts` - Server Sentry config with beforeSendLog
-2. `sentry.edge.config.ts` - Edge Sentry config with beforeSendLog
-3. `src/instrumentation-client.ts` - Client Sentry config with beforeSendLog
+### Search and Filter by CompanyId
 
-### New Files (2 files)
+![Sentry Logs with CompanyId Filter](./public/docs/companyID_search.png)
 
-4. `src/lib/sentryContext.ts` - Client-side global storage for companyId
-5. `src/lib/sentry-helpers.ts` - Helper to set Sentry context in API routes
+### Saved Searches
 
-### Modified Files (8 files)
+You can save frequently used queries for quick access:
 
-6. `src/middleware.ts` - Sets companyId tag for middleware logs
-7. `src/components/SentryUserContext.tsx` - Sets companyId for client logs
-8. `src/app/api/orders/route.ts` - Calls setSentryContext()
-9. `src/app/api/payments/route.ts` - Calls setSentryContext()
-10. `src/app/api/products/route.ts` - Calls setSentryContext()
-11. `src/app/api/products/[id]/route.ts` - Calls setSentryContext()
-12. `src/app/api/users/route.ts` - Calls setSentryContext()
-13. `src/app/api/auth/route.ts` - Calls setSentryContext()
+1. Build your query (e.g., `companyId:company-abc-123`)
+2. Click **"Save as"**
+3. Name it (e.g., "Company ABC Logs")
+4. Access from saved searches dropdown
+
+### Integration with Other Sentry Features
+
+The `companyId` attribute works seamlessly with:
+
+- **Alerts:** Create company-specific alert rules
+- **Discover:** Build custom queries combining logs and errors
+- **Dashboards:** Visualize log volume and error rates per company
+- **User Feedback:** Correlate user feedback with company-level log data
 
 ---
 
