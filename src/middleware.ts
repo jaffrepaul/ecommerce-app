@@ -14,10 +14,10 @@ export async function middleware(request: NextRequest) {
       email: user.email,
       username: user.name,
     })
-    
-    // Set companyId on isolation scope as a tag (will be read by beforeSendLog)
-    Sentry.getIsolationScope().setTag('companyId', user.companyId)
-    
+
+    // Set companyId as scope attribute - automatically applied to all logs
+    Sentry.getIsolationScope().setAttribute('companyId', user.companyId)
+
     // Use Sentry logger to ensure scope is properly set
     // This will have the companyId attribute!
     Sentry.logger.info('Middleware: User authenticated', {

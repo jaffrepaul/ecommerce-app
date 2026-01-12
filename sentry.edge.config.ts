@@ -17,23 +17,6 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
-  // Add companyId to logs from isolation scope tags
-  beforeSendLog: (log) => {
-    // Read from isolation scope where we set the tag
-    const isolationScope = Sentry.getIsolationScope();
-    const scopeData = isolationScope.getScopeData();
-    const companyId = scopeData?.tags?.companyId;
-    
-    if (companyId) {
-      log.attributes = {
-        ...log.attributes,
-        companyId,
-        setBy: isDevelopment ? 'EDGE-beforeSendLog' : undefined,
-      };
-    }
-    return log;
-  },
-
   // Send console logs to Sentry
   integrations: [
     Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] })
