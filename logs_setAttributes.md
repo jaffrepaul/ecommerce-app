@@ -343,6 +343,7 @@ Once your logs are flowing into Sentry with the `companyId` attribute, you can l
 ![Sentry Logs with CompanyId Filter](./public/docs/companyID_search.png)
 
 **Basic query syntax:**
+
 ```
 companyId:company-abc-123
 ```
@@ -450,3 +451,4 @@ Sentry.getIsolationScope().setAttribute("companyId", user.companyId);
 - **More reliable** - SDK handles attribute merging automatically
 - **Easier to maintain** - Less custom code to debug
 - **Same safety guarantees** - Isolation scope prevents data leaks
+- **No getCurrentScope() issues** - Previous version had unreliable `getCurrentScope()` behavior in `beforeSendLog` hooks (especially client-side), requiring global variable workarounds. The new `setAttribute()` API eliminates this entirely since the SDK reads attributes automatically without needing `getCurrentScope()` calls.
