@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import * as Sentry from '@sentry/nextjs'
 import { setSentryContext } from '@/lib/sentry-helpers'
+import { getCurrentUser } from '@/lib/auth'
 
 interface OrderItem {
   productId: string
@@ -38,11 +39,15 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   // CRITICAL: Set Sentry context first so all logs have companyId
   await setSentryContext()
-  
+
+  // Get the current user to include companyId in logs
+  const currentUser = await getCurrentUser()
+  const companyId = currentUser?.companyId
+
   try {
     // Set the transaction name for better trace identification
     Sentry.setTag('transaction', 'Create Order')
-    
+
     const body = await request.json()
     const { userId, items } = body
 
@@ -126,7 +131,9 @@ export async function POST(request: NextRequest) {
 
     // Log successful order creation with Sentry
     const { logger } = Sentry
-    
+
+    console.log(`✅ [ORDER SUCCESS] Sending success log to Sentry for order ${order.id}, companyId: ${companyId}`)
+
     logger.info(logger.fmt`Order created successfully for user ${userId}`, {
       userId,
       orderId: order.id,
@@ -136,6 +143,7 @@ export async function POST(request: NextRequest) {
       module: 'order',
       action: 'create_success',
       paymentAmount: total,
+      companyId: companyId || 'unknown',
       items: items.map((item: OrderItem) => ({
         productId: item.productId,
         quantity: item.quantity,
@@ -332,9 +340,10 @@ export async function POST(request: NextRequest) {
           duration,
         },
       })
-      
-      // Throw the error instead of returning response to ensure proper error tracking
-      throw timeoutError
+
+      // DEMO: Uncomment the line below to make orders fail with timeout error
+      // This demonstrates error tracking in Sentry while the order actually succeeds in the database
+      // throw timeoutError
     }
 
     return NextResponse.json(order, { status: 201 })

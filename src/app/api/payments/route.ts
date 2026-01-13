@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { prisma } from '@/lib/prisma'
 import { setSentryContext } from '@/lib/sentry-helpers'
+import { getCurrentUser } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   // CRITICAL: Set Sentry context first so all logs have companyId
   await setSentryContext()
-  
+
+  // Get the current user to include companyId in logs
+  const currentUser = await getCurrentUser()
+  const companyId = currentUser?.companyId
+
   return Sentry.startSpan(
     {
       name: 'Process Payment',
@@ -46,7 +51,9 @@ export async function POST(request: NextRequest) {
 
         // Log successful payment processing with Sentry
         const { logger } = Sentry
-        
+
+        console.log(`✅ [PAYMENT SUCCESS] Sending success log to Sentry for order ${updatedOrder.id}, companyId: ${companyId}`)
+
         logger.info(logger.fmt`Payment processed successfully for order ${updatedOrder.id}`, {
           userId,
           orderId: updatedOrder.id,
@@ -56,6 +63,7 @@ export async function POST(request: NextRequest) {
           previousTransactionsCount: previousTransactions.length,
           module: 'payment',
           action: 'process_success',
+          companyId: companyId || 'unknown',
         })
         
         // Set success tags for Sentry
@@ -185,9 +193,10 @@ export async function POST(request: NextRequest) {
               duration,
             },
           })
-          
-          // Throw the error instead of returning response to ensure proper error tracking
-          throw timeoutError
+
+          // DEMO: Uncomment the line below to make payments fail with timeout error
+          // This demonstrates error tracking in Sentry while the payment actually succeeds in the database
+          // throw timeoutError
         }
 
         return NextResponse.json({
