@@ -107,7 +107,7 @@ Sentry.init({
 });
 ```
 
-**No `beforeSendLog` hook needed!** The SDK automatically applies scope attributes to logs.
+**No `beforeSendLog` hook needed.** The SDK automatically applies scope attributes to logs.
 
 ---
 
@@ -213,6 +213,8 @@ Sentry.getIsolationScope().setAttribute("key", "value");
 // Current Scope - Per-operation/transaction
 Sentry.getCurrentScope().setAttribute("key", "value");
 ```
+
+> **Note on `getCurrentScope()`:** Testing showed that `getCurrentScope()` had inconsistent results across different scenarios (immediate calls, timeouts, async functions, promise chains), while `getIsolationScope()` reliably maintained context every time. Sentry docs warn: [_"There are no guarantees about the consistency of `getCurrentScope`"_](https://docs.sentry.io/platforms/javascript/guides/react/enriching-events/scopes/#current-scope) and recommend using `getIsolationScope()` for reliable per-request/session context storage.
 
 **Server-side:** Next.js handles concurrent requests in the same Node.js process. Using global scope causes data leaks between users:
 
