@@ -22,7 +22,7 @@ export function AuthDemo() {
       } else {
         setMessage('Login failed')
       }
-    } catch (error) {
+    } catch {
       setMessage('Login error')
     }
   }
@@ -33,7 +33,7 @@ export function AuthDemo() {
       setMessage('Logged out')
       // Reload to see the change
       setTimeout(() => window.location.reload(), 500)
-    } catch (error) {
+    } catch {
       setMessage('Logout error')
     }
   }

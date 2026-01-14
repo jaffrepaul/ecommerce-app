@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       name: 'Process Payment',
       op: 'payment',
     },
-    async (span) => {
+    async () => {
       try {
         const body = await request.json()
         const { userId, orderId, amount, paymentMethod } = body
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
           // Clone the request to avoid consuming it twice
           const clonedRequest = request.clone()
           body = await clonedRequest.json()
-        } catch (parseError) {
+        } catch {
           // If we can't parse the body, use empty object
           body = {}
         }
