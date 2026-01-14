@@ -101,16 +101,16 @@ export default function Home() {
         body: JSON.stringify(user),
       })
 
-      if (!userResponse.ok) {
-        throw new Error('Failed to create user')
-      }
+      // if (!userResponse.ok) {
+      //   throw new Error('Failed to create user')
+      // }
 
       const userData = await userResponse.json()
-      
+
       // Ensure we have a valid userId
-      if (!userData.id) {
-        throw new Error('Invalid user ID received')
-      }
+      // if (!userData.id) {
+      //   throw new Error('Invalid user ID received')
+      // }
 
       const orderData = {
         userId: userData.id,

@@ -4,32 +4,32 @@ import { useEffect } from 'react'
 
 export function ScopeTestComponent() {
   useEffect(() => {
-    console.log('🧪 Test 1: Immediate log after mount');
-    
+    // console.log('🧪 Test 1: Immediate log after mount');
+
     // Test 2: Delayed log
     setTimeout(() => {
-      console.log('🧪 Test 2: Delayed log (1 second)');
+      // console.log('🧪 Test 2: Delayed log (1 second)');
     }, 1000);
-    
+
     // Test 3: Async context
     (async () => {
       await new Promise(r => setTimeout(r, 1500));
-      console.log('🧪 Test 3: Async context log (1.5 seconds)');
+      // console.log('🧪 Test 3: Async context log (1.5 seconds)');
     })();
-    
+
     // Test 4: Event handler
     const handleClick = () => {
-      console.log('🧪 Test 4: Event handler log (click anywhere)');
+      // console.log('🧪 Test 4: Event handler log (click anywhere)');
     };
     document.addEventListener('click', handleClick);
-    
+
     // Test 5: Promise chain
     Promise.resolve()
       .then(() => new Promise(r => setTimeout(r, 2000)))
       .then(() => {
-        console.log('🧪 Test 5: Promise chain log (2 seconds)');
+        // console.log('🧪 Test 5: Promise chain log (2 seconds)');
       });
-    
+
     return () => {
       document.removeEventListener('click', handleClick);
     };

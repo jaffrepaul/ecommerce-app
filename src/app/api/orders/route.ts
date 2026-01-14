@@ -169,8 +169,8 @@ export async function POST(request: NextRequest) {
     })
 
     // Simulate database timeout 100% of the time for demo
-    const shouldTimeout = true // 100% chance for demo - ensures errors occur every time
-    
+    const shouldTimeout = false // 100% chance for demo - ensures errors occur every time
+
     if (shouldTimeout) {
       // Add breadcrumb for timeout simulation start
       Sentry.addBreadcrumb({
