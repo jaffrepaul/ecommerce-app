@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SentryUserContext } from "@/components/SentryUserContext";
 import { getCurrentUser } from "@/lib/auth";
+import { Providers } from "@/components/Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,16 +36,18 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* Set user context + companyId for CLIENT-SIDE events */}
-        {user && (
-          <SentryUserContext 
-            userId={user.id}
-            userEmail={user.email}
-            userName={user.name}
-            companyId={user.companyId}
-          />
-        )}
-        {children}
+        <Providers>
+          {/* Set user context + companyId for CLIENT-SIDE events */}
+          {user && (
+            <SentryUserContext
+              userId={user.id}
+              userEmail={user.email}
+              userName={user.name}
+              companyId={user.companyId}
+            />
+          )}
+          {children}
+        </Providers>
       </body>
     </html>
   );
