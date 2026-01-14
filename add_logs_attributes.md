@@ -400,3 +400,86 @@ companyId:company-abc-123
 4. **Set context before try blocks** to ensure error logs have companyId
 5. **Client needs global variable** because scope tags aren't reliable in beforeSendLog
 6. **Use `setTag()` not `setAttributes()`** - beforeSendLog reads from tags
+
+---
+
+## Updated Approach: NextAuth + setAttribute (SDK v10.32.0+)
+
+**Improvement:** No database calls in middleware, simpler code with `setAttribute()` API.
+
+### Authentication with NextAuth
+
+Store `companyId` in JWT token (no DB calls needed):
+
+**File:** `src/lib/auth-config.ts`
+```typescript
+export const authOptions: NextAuthOptions = {
+  providers: [CredentialsProvider({ /* ... */ })],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) token.companyId = user.companyId
+      return token
+    },
+    async session({ session, token }) {
+      session.user.companyId = token.companyId
+      return session
+    },
+  },
+  session: { strategy: "jwt" },
+}
+```
+
+### Middleware (No DB Call)
+
+**File:** `src/middleware.ts`
+```typescript
+import { getToken } from 'next-auth/jwt'
+
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ req: request }) // Reads JWT, no DB
+
+  if (token) {
+    Sentry.setUser({ id: token.sub, email: token.email, username: token.name })
+    Sentry.getIsolationScope().setAttribute('companyId', token.companyId)
+  }
+
+  return NextResponse.next()
+}
+```
+
+### API Routes (No DB Call)
+
+`getCurrentUser()` now uses `getServerSession()` which reads JWT:
+
+```typescript
+export async function getCurrentUser() {
+  const session = await getServerSession(authOptions) // Reads JWT, no DB
+  if (!session?.user) return null
+  return {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    companyId: session.user.companyId,
+  }
+}
+```
+
+### Client
+
+```typescript
+// SentryUserContext.tsx
+Sentry.getIsolationScope().setAttribute('companyId', companyId)
+```
+
+### Key Changes
+
+- **NextAuth JWT**: `companyId` stored in token (no DB lookups)
+- **`setAttribute()`**: SDK v10.32.0+ automatically applies to logs (no `beforeSendLog` hooks)
+- **Middleware**: Uses `getToken()` instead of database calls
+- **Simpler**: ~90% less code, same isolation guarantees
+
+**Environment:**
+```bash
+NEXTAUTH_SECRET=your-secret-key
+NEXTAUTH_URL=http://localhost:3001
+```

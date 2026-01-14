@@ -2,39 +2,45 @@
 
 import { useState } from 'react'
 import * as Sentry from '@sentry/nextjs'
+import { signIn, signOut, useSession } from 'next-auth/react'
 
 export function AuthDemo() {
   const [message, setMessage] = useState('')
+  const { data: session } = useSession()
 
   const handleLogin = async (userId: string) => {
-    const response = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', userId }),
-    })
-    const data = await response.json()
-    setMessage(data.message || data.error)
-    
-    // Reload to see the new user context
-    setTimeout(() => window.location.reload(), 500)
+    try {
+      const result = await signIn('credentials', {
+        userId,
+        redirect: false,
+      })
+
+      if (result?.ok) {
+        setMessage(`Logged in as ${userId}`)
+        // Reload to see the new user context
+        setTimeout(() => window.location.reload(), 500)
+      } else {
+        setMessage('Login failed')
+      }
+    } catch {
+      setMessage('Login error')
+    }
   }
 
   const handleLogout = async () => {
-    const response = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'logout' }),
-    })
-    const data = await response.json()
-    setMessage(data.message || data.error)
-    
-    // Reload to see the change
-    setTimeout(() => window.location.reload(), 500)
+    try {
+      await signOut({ redirect: false })
+      setMessage('Logged out')
+      // Reload to see the change
+      setTimeout(() => window.location.reload(), 500)
+    } catch {
+      setMessage('Logout error')
+    }
   }
 
   const testSentry = () => {
     // Send a test message to Sentry to verify companyId is attached
-    console.log('🧪 Testing Sentry with current companyId...')
+    // console.log('🧪 Testing Sentry with current companyId...')
     Sentry.captureMessage('Test: Checking if companyId is attached', 'info')
     setMessage('✅ Test message sent to Sentry! Check your dashboard.')
     setTimeout(() => setMessage(''), 3000)
@@ -43,7 +49,20 @@ export function AuthDemo() {
   return (
     <div className="fixed bottom-4 right-4 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-4 max-w-sm z-50">
       <h3 className="font-bold text-lg mb-3 text-gray-900">🔒 Auth Demo (Sentry Testing)</h3>
-      
+
+      {session?.user && (
+        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+          <p className="font-semibold text-blue-900">
+            Logged in as: {session.user.name || session.user.id}
+          </p>
+          {session.user.companyId && (
+            <p className="text-blue-700 text-xs">
+              Company: {session.user.companyId}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2 mb-3">
         <button
           onClick={() => handleLogin('user-1')}

@@ -20,10 +20,10 @@ export async function setSentryContext(): Promise<void> {
         email: user.email,
         username: user.name,
       })
-      
-      // Set companyId as tag (will be picked up by beforeSendLog)
-      Sentry.getIsolationScope().setTag('companyId', user.companyId)
-      
+
+      // Set companyId as scope attribute - automatically applied to all logs
+      Sentry.getIsolationScope().setAttribute('companyId', user.companyId)
+
       console.log(`✅ [API] Sentry context set: user=${user.id}, companyId=${user.companyId}`)
     } else {
       console.warn('⚠️ [API] No user found in session')

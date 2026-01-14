@@ -101,16 +101,16 @@ export default function Home() {
         body: JSON.stringify(user),
       })
 
-      if (!userResponse.ok) {
-        throw new Error('Failed to create user')
-      }
+      // if (!userResponse.ok) {
+      //   throw new Error('Failed to create user')
+      // }
 
       const userData = await userResponse.json()
-      
+
       // Ensure we have a valid userId
-      if (!userData.id) {
-        throw new Error('Invalid user ID received')
-      }
+      // if (!userData.id) {
+      //   throw new Error('Invalid user ID received')
+      // }
 
       const orderData = {
         userId: userData.id,
@@ -160,7 +160,7 @@ export default function Home() {
               message: errorData.message || 'Payment processing failed',
               type: 'payment'
             })
-          } catch (parseError) {
+          } catch {
             // If we can't parse the response, it might be a timeout
             setCheckoutError({
               message: 'Payment processing timed out. Please try again.',

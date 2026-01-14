@@ -1,34 +1,37 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
-import { getCurrentUser } from '@/lib/auth'
+import { getToken } from 'next-auth/jwt'
 
 export async function middleware(request: NextRequest) {
-  // Get user from session
-  const user = await getCurrentUser()
-  
-  if (user) {
+  // Get user from JWT token (no DB call!)
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET
+  })
+
+  if (token) {
     // Set user context first
     Sentry.setUser({
-      id: user.id,
-      email: user.email,
-      username: user.name,
+      id: token.sub || '',
+      email: token.email || '',
+      username: token.name || '',
     })
-    
-    // Set companyId on isolation scope as a tag (will be read by beforeSendLog)
-    Sentry.getIsolationScope().setTag('companyId', user.companyId)
-    
+
+    // Set companyId as scope attribute - automatically applied to all logs
+    Sentry.getIsolationScope().setAttribute('companyId', token.companyId as string)
+
     // Use Sentry logger to ensure scope is properly set
     // This will have the companyId attribute!
     Sentry.logger.info('Middleware: User authenticated', {
-      userId: user.id,
-      companyId: user.companyId,
+      userId: token.sub,
+      companyId: token.companyId,
     })
   } else {
     Sentry.setUser(null)
     Sentry.logger.warn('Middleware: No user found in session')
   }
-  
+
   return NextResponse.next()
 }
 

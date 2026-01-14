@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-import * as Sentry from '@sentry/nextjs'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
